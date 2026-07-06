@@ -51,7 +51,7 @@ display_image() {
   fi
   printf 'id: %s  artist: %s\n' "$shown_id" "$artist"
   printf 'tags: %s  sequence: %s\n' "$tags" "$sequence"
-  chafa "$path"
+  chafa --format sixels "$path"
 }
 
 display_previews() {
@@ -60,11 +60,11 @@ display_previews() {
   help=$(chafa --help 2>&1)
   case "$help" in
     *--grid*)
-      chafa --grid auto --label off --animate off "$@"
+      chafa --format sixels --grid auto --label off --animate off "$@"
       ;;
     *)
       for path in "$@"; do
-        chafa --size 32x16 "$path"
+        chafa --format sixels --size 32x16 "$path"
       done
       ;;
   esac
