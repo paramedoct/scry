@@ -39,10 +39,10 @@ image_record() {
   image_validate_id "$id"
   db_value "
 SELECT id || char(9) || sha256 || char(9) || artist || char(9) ||
-       original_name || char(9) || mime_type || char(9) || byte_size
+       mime_type || char(9) || byte_size
 FROM (
   SELECT images.id, images.sha256, artists.name AS artist,
-         images.original_name, images.mime_type, images.byte_size
+         images.mime_type, images.byte_size
   FROM images
   JOIN artists ON artists.id = images.artist_id
 ) WHERE id = $id;
@@ -64,11 +64,9 @@ image_add() {
   local file
   local sha
   local existing_id
-  local name
   local mime
   local size
   local artist_sql
-  local name_sql
   local mime_sql
   local target_dir
   local target
@@ -76,7 +74,6 @@ image_add() {
   local id
   artist=$1
   file=$2
-  name=$3
   image_validate_artist "$artist"
   if [ ! -f "$file" ] || [ ! -r "$file" ]; then
     echo "image is not a readable file: $file" >&2
@@ -98,7 +95,6 @@ image_add() {
   esac
   size=$(wc -c <"$file" | tr -d '[:space:]')
   artist_sql=$(db_quote "$artist")
-  name_sql=$(db_quote "$name")
   mime_sql=$(db_quote "$mime")
   target_dir=$ARTS_IMAGES_DIR/$artist
   target=$(image_path "$artist" "$sha")
@@ -117,8 +113,8 @@ image_add() {
 PRAGMA foreign_keys = ON;
 BEGIN IMMEDIATE;
 INSERT OR IGNORE INTO artists (name) VALUES ($artist_sql);
-INSERT INTO images (sha256, artist_id, original_name, mime_type, byte_size)
-SELECT $(db_quote "$sha"), id, $name_sql, $mime_sql, $size
+INSERT INTO images (sha256, artist_id, mime_type, byte_size)
+SELECT $(db_quote "$sha"), id, $mime_sql, $size
 FROM artists WHERE name = $artist_sql;
 SELECT last_insert_rowid();
 COMMIT;

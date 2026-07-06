@@ -4,7 +4,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 UPLOAD_FILE=
 
 usage() {
-  echo "$0 <artist> <original-name>" >&2
+  echo "$0 <artist>" >&2
   exit 1
 }
 
@@ -17,16 +17,13 @@ source_modules \
 
 main() {
   local artist
-  local original_name
-  [ "$#" -eq 2 ] || usage
+  [ "$#" -eq 1 ] || usage
   artist=$1
-  original_name=${2##*/}
-  [ -n "$original_name" ] || usage
   profile_prepare
   UPLOAD_FILE=$(mktemp "$ARTS_STATE_DIR/.upload.XXXXXX")
   trap 'rm -f "$UPLOAD_FILE"' EXIT HUP INT TERM
   cat >"$UPLOAD_FILE"
-  image_add "$artist" "$UPLOAD_FILE" "$original_name"
+  image_add "$artist" "$UPLOAD_FILE"
 }
 
 main "$@"

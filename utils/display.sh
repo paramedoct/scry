@@ -11,9 +11,7 @@ display_info() {
   local id
   id=$1
   db_value "
-SELECT images.id || char(9) || artists.name || char(9) ||
-       images.original_name || char(9) ||
-       COALESCE((
+SELECT images.id || char(9) || artists.name || char(9) || COALESCE((
          SELECT group_concat(name, ',') FROM (
            SELECT tags.name AS name
            FROM tags
@@ -38,7 +36,6 @@ display_image() {
   local artist
   local info
   local shown_id
-  local original_name
   local tags
   local sequence
   local path
@@ -46,13 +43,13 @@ display_image() {
   record=$(image_require "$id")
   IFS=$'\t' read -r _ sha artist _ <<<"$record"
   info=$(display_info "$id")
-  IFS=$'\t' read -r shown_id artist original_name tags sequence <<<"$info"
+  IFS=$'\t' read -r shown_id artist tags sequence <<<"$info"
   path=$(image_path "$artist" "$sha")
   if [ ! -r "$path" ]; then
     echo "stored image not found: $path" >&2
     return 1
   fi
-  printf 'id: %s  artist: %s  file: %s\n' "$shown_id" "$artist" "$original_name"
+  printf 'id: %s  artist: %s\n' "$shown_id" "$artist"
   printf 'tags: %s  sequence: %s\n' "$tags" "$sequence"
   chafa "$path"
 }
@@ -70,7 +67,6 @@ display_page() {
   local sha
   local artist
   local shown_id
-  local original_name
   local tags
   local sequence
   local path
@@ -94,14 +90,14 @@ display_page() {
       record=$(image_require "$id")
       IFS=$'\t' read -r _ sha artist _ <<<"$record"
       info=$(display_info "$id")
-      IFS=$'\t' read -r shown_id artist original_name tags sequence <<<"$info"
+      IFS=$'\t' read -r shown_id artist tags sequence <<<"$info"
       path=$(image_path "$artist" "$sha")
       if [ ! -r "$path" ]; then
         echo "stored image not found: $path" >&2
         return 1
       fi
-      printf '[%s] id: %s  artist: %s  file: %s  sequence: %s\n' \
-        "$((index + 1))" "$shown_id" "$artist" "$original_name" "$sequence"
+      printf '[%s] id: %s  artist: %s  sequence: %s\n' \
+        "$((index + 1))" "$shown_id" "$artist" "$sequence"
       paths+=("$path")
     fi
     index=$((index + 1))
