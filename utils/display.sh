@@ -54,6 +54,22 @@ display_image() {
   chafa "$path"
 }
 
+display_previews() {
+  local help
+  local path
+  help=$(chafa --help 2>&1)
+  case "$help" in
+    *--grid*)
+      chafa --grid auto --label off --animate off "$@"
+      ;;
+    *)
+      for path in "$@"; do
+        chafa --size 32x16 "$path"
+      done
+      ;;
+  esac
+}
+
 display_page() {
   local page
   local limit
@@ -103,7 +119,7 @@ display_page() {
     index=$((index + 1))
   done
   printf '\n'
-  chafa --grid auto --label off --animate off "${paths[@]}"
+  display_previews "${paths[@]}"
 }
 
 display_pager() {
