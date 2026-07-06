@@ -12,6 +12,7 @@ source "$ROOT_DIR/utils/source.sh"
 source_modules \
   utils/db.sh \
   utils/profile.sh \
+  utils/object.sh \
   utils/image.sh \
   utils/tag.sh \
   utils/search.sh \

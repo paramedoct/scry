@@ -6,51 +6,51 @@ tag_validate() {
 }
 
 tag_add() {
-  local image_id
+  local object_id
   local tag
-  image_id=$1
+  object_id=$1
   tag=$2
-  image_require "$image_id" >/dev/null
+  object_type "$object_id" >/dev/null
   tag_validate "$tag"
   db_run "
 PRAGMA foreign_keys = ON;
 BEGIN IMMEDIATE;
 INSERT OR IGNORE INTO tags (name) VALUES ($(db_quote "$tag"));
-INSERT OR IGNORE INTO image_tags (image_id, tag_id)
-SELECT $image_id, id FROM tags WHERE name = $(db_quote "$tag");
+INSERT OR IGNORE INTO object_tags (object_id, tag_id)
+SELECT $object_id, id FROM tags WHERE name = $(db_quote "$tag");
 COMMIT;
 "
 }
 
 tag_remove() {
-  local image_id
+  local object_id
   local tag
-  image_id=$1
+  object_id=$1
   tag=$2
-  image_require "$image_id" >/dev/null
+  object_type "$object_id" >/dev/null
   tag_validate "$tag"
   db_run "
 PRAGMA foreign_keys = ON;
 BEGIN IMMEDIATE;
-DELETE FROM image_tags
-WHERE image_id = $image_id
+DELETE FROM object_tags
+WHERE object_id = $object_id
   AND tag_id = (SELECT id FROM tags WHERE name = $(db_quote "$tag"));
 DELETE FROM tags WHERE NOT EXISTS (
-  SELECT 1 FROM image_tags WHERE image_tags.tag_id = tags.id
+  SELECT 1 FROM object_tags WHERE object_tags.tag_id = tags.id
 );
 COMMIT;
 "
 }
 
 tag_list() {
-  local image_id
-  image_id=$1
-  image_require "$image_id" >/dev/null
+  local object_id
+  object_id=$1
+  object_type "$object_id" >/dev/null
   db_value "
 SELECT tags.name
 FROM tags
-JOIN image_tags ON image_tags.tag_id = tags.id
-WHERE image_tags.image_id = $image_id
+JOIN object_tags ON object_tags.tag_id = tags.id
+WHERE object_tags.object_id = $object_id
 ORDER BY tags.name;
 "
 }

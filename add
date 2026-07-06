@@ -13,6 +13,7 @@ source "$ROOT_DIR/utils/source.sh"
 source_modules \
   utils/db.sh \
   utils/profile.sh \
+  utils/object.sh \
   utils/image.sh \
   utils/sequence.sh \
   utils/archive.sh

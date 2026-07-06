@@ -3,7 +3,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 usage() {
-  echo "$0 <image-id> <artist>" >&2
+  echo "$0 <id> <artist>" >&2
   exit 1
 }
 
@@ -12,6 +12,7 @@ source "$ROOT_DIR/utils/source.sh"
 source_modules \
   utils/db.sh \
   utils/profile.sh \
+  utils/object.sh \
   utils/image.sh
 
 main() {

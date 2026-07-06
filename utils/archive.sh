@@ -70,5 +70,5 @@ archive_add() {
     return 1
   fi
   rm -rf "$work_dir"
-  printf 'sequence:%s\n' "$sequence_id"
+  printf '%s\n' "$sequence_id"
 }

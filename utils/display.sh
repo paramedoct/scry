@@ -11,21 +11,23 @@ display_info() {
   local id
   id=$1
   db_value "
-SELECT images.id || char(9) || artists.name || char(9) || COALESCE((
+SELECT image_objects.object_id || char(9) || artists.name || char(9) || COALESCE((
          SELECT group_concat(name, ',') FROM (
            SELECT tags.name AS name
            FROM tags
-           JOIN image_tags ON image_tags.tag_id = tags.id
-           WHERE image_tags.image_id = images.id
+           JOIN object_tags ON object_tags.tag_id = tags.id
+           WHERE object_tags.object_id = image_objects.object_id
            ORDER BY tags.name
          )
        ), '-') || char(9) ||
-       COALESCE(sequences.id || ':' || sequence_items.position, '-')
+       COALESCE(sequence_objects.object_id || ':' || sequence_items.position, '-')
 FROM images
+JOIN image_objects ON image_objects.image_id = images.id
 JOIN artists ON artists.id = images.artist_id
 LEFT JOIN sequence_items ON sequence_items.image_id = images.id
 LEFT JOIN sequences ON sequences.id = sequence_items.sequence_id
-WHERE images.id = $id;
+LEFT JOIN sequence_objects ON sequence_objects.sequence_id = sequences.id
+WHERE image_objects.object_id = $id;
 "
 }
 
@@ -49,7 +51,7 @@ display_image() {
     echo "stored image not found: $path" >&2
     return 1
   fi
-  printf 'image id: %s  artist: %s\n' "$shown_id" "$artist"
+  printf 'id: %s  type: image  artist: %s\n' "$shown_id" "$artist"
   printf 'tags: %s  sequence: %s\n' "$tags" "$sequence"
   chafa --format sixels "$path"
 }
@@ -127,13 +129,13 @@ display_sequence_browser() {
     end=$((start + visible))
     if ((end > total)); then end=$total; fi
     printf '\033[2J\033[H'
-    printf 'sequence:%s  image:%s  %s/%s  artist: %s  tags: %s\n' \
+    printf 'id: %s  type: sequence  image: %s  %s/%s  artist: %s  tags: %s\n' \
       "$sequence_id" "${ids[$selected]}" "$((selected + 1))" "$total" \
       "${artists[$selected]}" "${tag_values[$selected]}"
     printf '%-*s |\n' "$list_width" "images"
     index=$start
     while ((index < end)); do
-      label=$(printf '%3s  image:%s  %s' "$((index + 1))" \
+      label=$(printf '%3s  %s  %s' "$((index + 1))" \
         "${ids[$index]}" "${artists[$index]}")
       label=${label:0:$((list_width - 1))}
       if ((index == selected)); then
@@ -216,20 +218,22 @@ display_page() {
   index=0
   for target in "$@"; do
     if ((index >= start && index < end)); then
-      case "$target" in
-        image:*) id=${target#image:} ;;
-        sequence:*)
+      case "$(object_type "$target")" in
+        image) id=$target ;;
+        sequence)
           id=$(db_value "
-SELECT image_id FROM sequence_items
-WHERE sequence_id = ${target#sequence:}
+SELECT image_objects.object_id FROM sequence_items
+JOIN image_objects ON image_objects.image_id = sequence_items.image_id
+JOIN sequence_objects
+  ON sequence_objects.sequence_id = sequence_items.sequence_id
+WHERE sequence_objects.object_id = $target
 ORDER BY position LIMIT 1;
 ")
           if [ -z "$id" ]; then
-            echo "sequence not found or empty: ${target#sequence:}" >&2
+            echo "sequence not found or empty: $target" >&2
             return 1
           fi
           ;;
-        *) id=$target; target=image:$target ;;
       esac
       record=$(image_require "$id")
       IFS=$'\t' read -r _ sha artist _ <<<"$record"
@@ -240,8 +244,9 @@ ORDER BY position LIMIT 1;
         echo "stored image not found: $path" >&2
         return 1
       fi
-      printf '[%s] %s  artist: %s  sequence: %s\n' \
-        "$((index + 1))" "$target" "$artist" "$sequence"
+      printf '[%s] id: %s  type: %s  artist: %s  sequence: %s\n' \
+        "$((index + 1))" "$target" "$(object_type "$target")" \
+        "$artist" "$sequence"
       paths+=("$path")
     fi
     index=$((index + 1))

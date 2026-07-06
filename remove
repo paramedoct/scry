@@ -3,7 +3,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 usage() {
-  echo "$0 <image-id...>" >&2
+  echo "$0 <id...>" >&2
   exit 1
 }
 
@@ -12,14 +12,19 @@ source "$ROOT_DIR/utils/source.sh"
 source_modules \
   utils/db.sh \
   utils/profile.sh \
-  utils/image.sh
+  utils/object.sh \
+  utils/image.sh \
+  utils/sequence.sh
 
 main() {
   local id
   [ "$#" -ge 1 ] || usage
   profile_prepare
   for id in "$@"; do
-    image_remove "$id"
+    case "$(object_type "$id")" in
+      image) image_remove "$id" ;;
+      sequence) sequence_remove "$id" ;;
+    esac
   done
 }
 
