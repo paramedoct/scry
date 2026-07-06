@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+set -euo pipefail
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+usage() {
+  echo "$0 set <name> <image-id...>" >&2
+  echo "$0 remove <name>" >&2
+  echo "$0 list" >&2
+  exit 1
+}
+
+# shellcheck source=/dev/null
+source "$ROOT_DIR/utils/source.sh"
+source_modules \
+  utils/db.sh \
+  utils/profile.sh \
+  utils/image.sh \
+  utils/sequence.sh
+
+main() {
+  local action
+  [ "$#" -ge 1 ] || usage
+  action=$1
+  shift
+  profile_prepare
+  case "$action" in
+    set)
+      [ "$#" -ge 2 ] || usage
+      sequence_set "$@"
+      ;;
+    remove)
+      [ "$#" -eq 1 ] || usage
+      sequence_remove "$1"
+      ;;
+    list)
+      [ "$#" -eq 0 ] || usage
+      sequence_list
+      ;;
+    *) usage ;;
+  esac
+}
+
+main "$@"
