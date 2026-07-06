@@ -190,13 +190,13 @@ display_sequence_browser() {
       printf '\033[%s;1H\n' "$rows"
       return 1
     fi
-    printf '\033[%s;1H[j] 이전  [k] 다음  [q] 종료' "$rows"
-    IFS= read -r -n 1 key </dev/tty
+    printf '\033[%s;1H[k] 이전  [j] 다음  [q] 종료' "$rows"
+    key=$(display_read_key)
     case "$key" in
-      j | J)
+      k | K | $'\033[A')
         if ((selected > 0)); then selected=$((selected - 1)); fi
         ;;
-      k | K)
+      j | J | $'\033[B')
         if ((selected + 1 < total)); then selected=$((selected + 1)); fi
         ;;
       q | Q)
@@ -332,16 +332,16 @@ display_pager() {
     if [ ! -t 0 ] || [ ! -t 1 ] || ((pages == 1)); then
       return 0
     fi
-    printf '[j] previous [k] next [q] quit: '
-    IFS= read -r -n 1 key </dev/tty
+    printf '[k] previous [j] next [q] quit: '
+    key=$(display_read_key)
     printf '\n'
     case "$key" in
-      j | J)
+      k | K | $'\033[A')
         if ((page > 0)); then
           page=$((page - 1))
         fi
         ;;
-      k | K)
+      j | J | $'\033[B')
         if ((page + 1 < pages)); then
           page=$((page + 1))
         fi
