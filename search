@@ -19,13 +19,13 @@ source_modules \
 
 main() {
   local limit
-  local ids
+  local targets
   local arg
   local -a tags
-  local -a image_ids
+  local -a result_targets
   limit=12
   tags=()
-  image_ids=()
+  result_targets=()
   while [ "$#" -gt 0 ]; do
     arg=$1
     shift
@@ -43,12 +43,12 @@ main() {
   done
   display_validate_limit "$limit"
   profile_prepare
-  ids=$(search_image_ids "${tags[@]}")
+  targets=$(search_targets "${tags[@]}")
   while IFS= read -r arg; do
     [ -n "$arg" ] || continue
-    image_ids+=("$arg")
-  done <<<"$ids"
-  display_pager "$limit" "${image_ids[@]}"
+    result_targets+=("$arg")
+  done <<<"$targets"
+  display_pager "$limit" "${result_targets[@]}"
 }
 
 main "$@"

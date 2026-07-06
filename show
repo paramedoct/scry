@@ -3,7 +3,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 usage() {
-  echo "$0 <image-id>" >&2
+  echo "$0 <image-id|image:id|sequence:id> [--limit <count>]" >&2
   exit 1
 }
 
@@ -13,12 +13,52 @@ source_modules \
   utils/db.sh \
   utils/profile.sh \
   utils/image.sh \
+  utils/sequence.sh \
   utils/display.sh
 
 main() {
-  [ "$#" -eq 1 ] || usage
+  local target
+  local limit
+  local ids
+  local id
+  local -a image_targets
+  local -a image_ids
+  [ "$#" -ge 1 ] || usage
+  target=$1
+  shift
+  limit=12
+  image_targets=()
+  image_ids=()
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --limit)
+        [ "$#" -ge 2 ] || usage
+        limit=$2
+        shift 2
+        ;;
+      --limit=*) limit=${1#--limit=}; shift ;;
+      *) usage ;;
+    esac
+  done
+  display_validate_limit "$limit"
   profile_prepare
-  display_image "$1"
+  case "$target" in
+    sequence:*)
+      ids=$(sequence_image_ids "${target#sequence:}")
+      while IFS= read -r id; do
+        [ -n "$id" ] || continue
+        image_ids+=("$id")
+        image_targets+=("image:$id")
+      done <<<"$ids"
+      if [ -t 0 ] && [ -t 1 ]; then
+        display_sequence_browser "${target#sequence:}" "${image_ids[@]}"
+      else
+        display_pager "$limit" "${image_targets[@]}"
+      fi
+      ;;
+    image:*) display_image "${target#image:}" ;;
+    *) display_image "$target" ;;
+  esac
 }
 
 main "$@"
