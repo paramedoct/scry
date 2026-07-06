@@ -92,7 +92,7 @@ display_image() {
   fi
   printf 'id: %s  type: image  artist: %s\n' "$shown_id" "$artist"
   printf 'tags: %s  sequence: %s\n' "$tags" "$sequence"
-  chafa --format sixels "$path"
+  chafa "$path"
 }
 
 display_sequence_browser() {
@@ -185,7 +185,7 @@ display_sequence_browser() {
       index=$((index + 1))
     done
     printf '\033[2;%sH' "$((list_width + 3))"
-    if ! chafa --format sixels --animate off \
+    if ! chafa --animate off \
       --size "${image_width}x${image_height}" "${paths[$selected]}"; then
       printf '\033[%s;1H\n' "$rows"
       return 1
@@ -215,11 +215,11 @@ display_previews() {
   help=$(chafa --help 2>&1)
   case "$help" in
     *--grid*)
-      chafa --format sixels --grid "$grid" --label on --animate off "$@"
+      chafa --grid "$grid" --label on --link off --animate off "$@"
       ;;
     *)
       for path in "$@"; do
-        chafa --format sixels --size 32x16 "$path"
+        chafa --size 32x16 "$path"
       done
       ;;
   esac
