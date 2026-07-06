@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+set -euo pipefail
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+usage() {
+  echo "$0 [tag...] [--limit <count>]" >&2
+  exit 1
+}
+
+# shellcheck source=/dev/null
+source "$ROOT_DIR/utils/source.sh"
+source_modules \
+  utils/db.sh \
+  utils/profile.sh \
+  utils/image.sh \
+  utils/tag.sh \
+  utils/search.sh \
+  utils/display.sh
+
+main() {
+  local limit
+  local ids
+  local arg
+  local -a tags
+  local -a image_ids
+  limit=12
+  tags=()
+  image_ids=()
+  while [ "$#" -gt 0 ]; do
+    arg=$1
+    shift
+    case "$arg" in
+      --limit)
+        [ "$#" -ge 1 ] || usage
+        limit=$1
+        shift
+        ;;
+      --limit=*) limit=${arg#--limit=} ;;
+      --) tags+=("$@"); break ;;
+      -*) usage ;;
+      *) tags+=("$arg") ;;
+    esac
+  done
+  display_validate_limit "$limit"
+  profile_prepare
+  ids=$(search_image_ids "${tags[@]}")
+  while IFS= read -r arg; do
+    [ -n "$arg" ] || continue
+    image_ids+=("$arg")
+  done <<<"$ids"
+  display_pager "$limit" "${image_ids[@]}"
+}
+
+main "$@"
