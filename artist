@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+set -euo pipefail
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+usage() {
+  echo "$0 <image-id> <artist>" >&2
+  exit 1
+}
+
+# shellcheck source=/dev/null
+source "$ROOT_DIR/utils/source.sh"
+source_modules \
+  utils/db.sh \
+  utils/profile.sh \
+  utils/image.sh
+
+main() {
+  [ "$#" -eq 2 ] || usage
+  profile_prepare
+  image_set_artist "$1" "$2"
+}
+
+main "$@"
