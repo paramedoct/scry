@@ -279,18 +279,18 @@ display_pager() {
     if [ ! -t 0 ] || [ ! -t 1 ] || ((pages == 1)); then
       return 0
     fi
-    printf '[n]ext [p]revious [q]uit: '
+    printf '[j] previous [k] next [q] quit: '
     IFS= read -r -n 1 key </dev/tty
     printf '\n'
     case "$key" in
-      n | N)
-        if ((page + 1 < pages)); then
-          page=$((page + 1))
-        fi
-        ;;
-      p | P)
+      j | J)
         if ((page > 0)); then
           page=$((page - 1))
+        fi
+        ;;
+      k | K)
+        if ((page + 1 < pages)); then
+          page=$((page + 1))
         fi
         ;;
       q | Q) return 0 ;;
