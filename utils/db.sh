@@ -19,6 +19,7 @@ db_init() {
   local name
   local sql
   local violations
+  local invalid
   db_run "
 CREATE TABLE IF NOT EXISTS schema_migrations (
   name TEXT PRIMARY KEY,
@@ -34,6 +35,23 @@ SELECT name FROM schema_migrations WHERE name = $(db_quote "$name");
       continue
     fi
     sql=$(<"$migration")
+    if [ "$name" = 006_object_images.sql ]; then
+      invalid=$(db_value "
+SELECT sequence_objects.object_id || char(9) || group_concat(name, ',')
+FROM sequence_objects
+LEFT JOIN sequence_items
+  ON sequence_items.sequence_id = sequence_objects.sequence_id
+LEFT JOIN images ON images.id = sequence_items.image_id
+LEFT JOIN artists ON artists.id = images.artist_id
+GROUP BY sequence_objects.object_id
+HAVING count(DISTINCT images.artist_id) <> 1;
+")
+      if [ -n "$invalid" ]; then
+        echo "sequence artist migration requires exactly one artist:" >&2
+        echo "$invalid" >&2
+        return 1
+      fi
+    fi
     sqlite3 -batch -bail -cmd 'PRAGMA foreign_keys = OFF;' \
       "$ARTS_DB_FILE" "
 BEGIN IMMEDIATE;

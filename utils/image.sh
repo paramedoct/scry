@@ -38,16 +38,39 @@ image_record() {
   id=$1
   image_validate_id "$id"
   db_value "
-SELECT id || char(9) || sha256 || char(9) || artist || char(9) ||
-       mime_type || char(9) || byte_size
-FROM (
-  SELECT image_objects.object_id AS id, images.sha256, artists.name AS artist,
-         images.mime_type, images.byte_size
-  FROM images
-  JOIN image_objects ON image_objects.image_id = images.id
-  JOIN artists ON artists.id = images.artist_id
-) WHERE id = $id;
+SELECT objects.id || char(9) || images.sha256 || char(9) ||
+       artists.name || char(9) || images.mime_type || char(9) || images.byte_size
+FROM objects
+JOIN images ON images.object_id = objects.id
+JOIN artists ON artists.id = objects.artist_id
+WHERE objects.id = $id AND objects.type = 'image' AND images.position = 1;
 "
+}
+
+image_file_record() {
+  local id
+  id=$1
+  image_validate_id "$id"
+  db_value "
+SELECT images.id || char(9) || images.sha256 || char(9) ||
+       artists.name || char(9) || images.mime_type || char(9) ||
+       images.byte_size || char(9) || images.object_id || char(9) ||
+       images.position
+FROM images
+JOIN objects ON objects.id = images.object_id
+JOIN artists ON artists.id = objects.artist_id
+WHERE images.id = $id;
+"
+}
+
+image_file_require() {
+  local record
+  record=$(image_file_record "$1")
+  if [ -z "$record" ]; then
+    echo "image file not found: $1" >&2
+    return 1
+  fi
+  printf '%s\n' "$record"
 }
 
 image_require() {
@@ -82,9 +105,7 @@ image_add() {
   fi
   sha=$(image_sha256 "$file")
   existing_id=$(db_value "
-SELECT image_objects.object_id FROM images
-JOIN image_objects ON image_objects.image_id = images.id
-WHERE images.sha256 = $(db_quote "$sha");
+SELECT object_id FROM images WHERE sha256 = $(db_quote "$sha");
 ")
   if [ -n "$existing_id" ]; then
     echo "duplicate image skipped: sha256 $sha" >&2
@@ -118,12 +139,11 @@ WHERE images.sha256 = $(db_quote "$sha");
 PRAGMA foreign_keys = ON;
 BEGIN IMMEDIATE;
 INSERT OR IGNORE INTO artists (name) VALUES ($artist_sql);
-INSERT INTO objects (type) VALUES ('image');
-INSERT INTO images (sha256, artist_id, mime_type, byte_size)
-SELECT $(db_quote "$sha"), id, $mime_sql, $size
+INSERT INTO objects (type, artist_id)
+SELECT 'image', id FROM artists WHERE name = $artist_sql;
+INSERT INTO images (object_id, position, sha256, mime_type, byte_size)
+SELECT (SELECT max(id) FROM objects), 1, $(db_quote "$sha"), $mime_sql, $size
 FROM artists WHERE name = $artist_sql;
-INSERT INTO image_objects (object_id, image_id)
-SELECT max(id), (SELECT max(id) FROM images) FROM objects;
 SELECT max(id) FROM objects;
 COMMIT;
 "); then
@@ -146,10 +166,10 @@ image_remove() {
   db_run "
 BEGIN IMMEDIATE;
 DELETE FROM images
-WHERE id = (SELECT image_id FROM image_objects WHERE object_id = $id);
+WHERE object_id = $id;
 DELETE FROM objects WHERE id = $id;
 DELETE FROM artists WHERE NOT EXISTS (
-  SELECT 1 FROM images WHERE images.artist_id = artists.id
+  SELECT 1 FROM objects WHERE objects.artist_id = artists.id
 );
 COMMIT;
 "

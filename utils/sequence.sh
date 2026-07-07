@@ -11,27 +11,34 @@ sequence_add() {
   local statements
   local position
   local image_id
+  local artist_id
+  local current_artist_id
   [ "$#" -ge 1 ] || {
     echo "sequence requires at least one image" >&2
+    return 1
+  }
+  artist_id=$(db_value "SELECT artist_id FROM objects WHERE id = $1;")
+  [ -n "$artist_id" ] || {
+    echo "image not found: $1" >&2
     return 1
   }
   statements="
 PRAGMA foreign_keys = ON;
 BEGIN IMMEDIATE;
-INSERT INTO sequences DEFAULT VALUES;"
-  statements="$statements
-INSERT INTO objects (type) VALUES ('sequence');
-INSERT INTO sequence_objects (object_id, sequence_id)
-SELECT max(objects.id), max(sequences.id) FROM objects, sequences;"
+INSERT INTO objects (type, artist_id) VALUES ('sequence', $artist_id);"
   position=1
   for image_id in "$@"; do
     image_require "$image_id" >/dev/null
+    current_artist_id=$(db_value \
+      "SELECT artist_id FROM objects WHERE id = $image_id;")
+    if [ "$current_artist_id" != "$artist_id" ]; then
+      echo "sequence images must have the same artist" >&2
+      return 1
+    fi
     statements="$statements
-INSERT INTO sequence_items (sequence_id, image_id, position)
-SELECT sequence_objects.sequence_id, image_objects.image_id, $position
-FROM sequence_objects, image_objects
-WHERE sequence_objects.object_id = (SELECT max(id) FROM objects)
-  AND image_objects.object_id = $image_id;"
+UPDATE images SET object_id = (SELECT max(id) FROM objects), position = $position
+WHERE object_id = $image_id;
+DELETE FROM objects WHERE id = $image_id;"
     position=$((position + 1))
   done
   statements="$statements
@@ -42,15 +49,33 @@ COMMIT;"
 
 sequence_remove() {
   local id
+  local records
+  local sha
+  local artist
+  local path
   id=$1
   sequence_require "$id" >/dev/null
+  records=$(db_value "
+SELECT images.sha256 || char(9) || artists.name
+FROM images
+JOIN objects ON objects.id = images.object_id
+JOIN artists ON artists.id = objects.artist_id
+WHERE objects.id = $id ORDER BY images.position;
+")
   db_run "
 BEGIN IMMEDIATE;
-DELETE FROM sequences
-WHERE id = (SELECT sequence_id FROM sequence_objects WHERE object_id = $id);
 DELETE FROM objects WHERE id = $id;
+DELETE FROM artists WHERE NOT EXISTS (
+  SELECT 1 FROM objects WHERE objects.artist_id = artists.id
+);
 COMMIT;
 "
+  while IFS=$'\t' read -r sha artist; do
+    [ -n "$sha" ] || continue
+    path=$(image_path "$artist" "$sha")
+    rm -f -- "$path"
+    rmdir "$ARTS_IMAGES_DIR/$artist" 2>/dev/null || true
+  done <<<"$records"
 }
 
 sequence_require() {
@@ -69,12 +94,8 @@ sequence_image_ids() {
   id=$1
   sequence_require "$id" >/dev/null
   db_value "
-SELECT image_objects.object_id
-FROM sequence_items
-JOIN image_objects ON image_objects.image_id = sequence_items.image_id
-JOIN sequence_objects
-  ON sequence_objects.sequence_id = sequence_items.sequence_id
-WHERE sequence_objects.object_id = $id
-ORDER BY sequence_items.position;
+SELECT images.id FROM images
+WHERE images.object_id = $id
+ORDER BY images.position;
 "
 }

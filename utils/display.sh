@@ -48,23 +48,18 @@ display_info() {
   local id
   id=$1
   db_value "
-SELECT image_objects.object_id || char(9) || artists.name || char(9) || COALESCE((
+SELECT objects.id || char(9) || artists.name || char(9) || COALESCE((
          SELECT group_concat(name, ',') FROM (
            SELECT tags.name AS name
            FROM tags
            JOIN object_tags ON object_tags.tag_id = tags.id
-           WHERE object_tags.object_id = image_objects.object_id
+           WHERE object_tags.object_id = objects.id
            ORDER BY tags.name
          )
-       ), '-') || char(9) ||
-       COALESCE(sequence_objects.object_id || ':' || sequence_items.position, '-')
-FROM images
-JOIN image_objects ON image_objects.image_id = images.id
-JOIN artists ON artists.id = images.artist_id
-LEFT JOIN sequence_items ON sequence_items.image_id = images.id
-LEFT JOIN sequences ON sequences.id = sequence_items.sequence_id
-LEFT JOIN sequence_objects ON sequence_objects.sequence_id = sequences.id
-WHERE image_objects.object_id = $id;
+       ), '-')
+FROM objects
+JOIN artists ON artists.id = objects.artist_id
+WHERE objects.id = $id;
 "
 }
 
@@ -82,14 +77,14 @@ display_image() {
   record=$(image_require "$id")
   IFS=$'\t' read -r _ sha artist _ <<<"$record"
   info=$(display_info "$id")
-  IFS=$'\t' read -r shown_id artist tags sequence <<<"$info"
+  IFS=$'\t' read -r shown_id artist tags <<<"$info"
   path=$(image_path "$artist" "$sha")
   if [ ! -r "$path" ]; then
     echo "stored image not found: $path" >&2
     return 1
   fi
   printf 'id: %s  type: image  artist: %s\n' "$shown_id" "$artist"
-  printf 'tags: %s  sequence: %s\n' "$tags" "$sequence"
+  printf 'tags: %s\n' "$tags"
   chafa "$path"
 }
 
@@ -133,10 +128,10 @@ display_sequence_browser() {
   artists=()
   tag_values=()
   for id in "${ids[@]}"; do
-    record=$(image_require "$id")
+    record=$(image_file_require "$id")
     IFS=$'\t' read -r _ sha artist _ <<<"$record"
-    info=$(display_info "$id")
-    IFS=$'\t' read -r shown_id artist tags sequence <<<"$info"
+    info=$(display_info "$sequence_id")
+    IFS=$'\t' read -r shown_id artist tags <<<"$info"
     path=$(image_path "$artist" "$sha")
     if [ ! -r "$path" ]; then
       echo "stored image not found: $path" >&2
@@ -166,14 +161,13 @@ display_sequence_browser() {
     end=$((start + visible))
     if ((end > total)); then end=$total; fi
     printf '\033[2J\033[H'
-    printf 'id: %s  type: sequence  image: %s  %s/%s  artist: %s  tags: %s\n' \
-      "$sequence_id" "${ids[$selected]}" "$((selected + 1))" "$total" \
+    printf 'id: %s  type: sequence  image: %s/%s  artist: %s  tags: %s\n' \
+      "$sequence_id" "$((selected + 1))" "$total" \
       "${artists[$selected]}" "${tag_values[$selected]}"
     printf '%-*s |\n' "$list_width" "images"
     index=$start
     while ((index < end)); do
-      label=$(printf '%3s  %s  %s' "$((index + 1))" \
-        "${ids[$index]}" "${artists[$index]}")
+      label=$(printf '%3s  %s' "$((index + 1))" "${artists[$index]}")
       label=${label:0:$((list_width - 1))}
       if ((index == selected)); then
         printf '\033[1;7m%-*s\033[0m |\n' "$list_width" "$label"
@@ -286,11 +280,8 @@ display_page() {
         image) id=$target ;;
         sequence)
           id=$(db_value "
-SELECT image_objects.object_id FROM sequence_items
-JOIN image_objects ON image_objects.image_id = sequence_items.image_id
-JOIN sequence_objects
-  ON sequence_objects.sequence_id = sequence_items.sequence_id
-WHERE sequence_objects.object_id = $target
+SELECT images.id FROM images
+WHERE images.object_id = $target
 ORDER BY position LIMIT 1;
 ")
           if [ -z "$id" ]; then
@@ -300,7 +291,11 @@ ORDER BY position LIMIT 1;
           fi
           ;;
       esac
-      record=$(image_require "$id")
+      if [ "$type" = image ]; then
+        record=$(image_require "$id")
+      else
+        record=$(image_file_require "$id")
+      fi
       IFS=$'\t' read -r _ sha artist _ <<<"$record"
       path=$(image_path "$artist" "$sha")
       if [ ! -r "$path" ]; then

@@ -19,3 +19,15 @@ object_type() {
   fi
   printf '%s\n' "$type"
 }
+
+object_artist() {
+  local id
+  id=$1
+  object_type "$id" >/dev/null
+  db_value "
+SELECT artists.name
+FROM objects
+JOIN artists ON artists.id = objects.artist_id
+WHERE objects.id = $id;
+"
+}
