@@ -53,17 +53,6 @@ COMMIT;
 "
 }
 
-sequence_list() {
-  db_value "
-SELECT sequence_objects.object_id || char(9) || count(sequence_items.image_id)
-FROM sequences
-JOIN sequence_objects ON sequence_objects.sequence_id = sequences.id
-LEFT JOIN sequence_items ON sequence_items.sequence_id = sequences.id
-GROUP BY sequences.id
-ORDER BY sequence_objects.object_id;
-"
-}
-
 sequence_require() {
   local id
   id=$1

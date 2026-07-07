@@ -205,6 +205,32 @@ display_sequence_browser() {
   done
 }
 
+display_target() {
+  local target
+  local type
+  local ids
+  local id
+  local -a image_ids
+  target=$1
+  type=$(object_type "$target")
+  case "$type" in
+    image)
+      display_image "$target"
+      printf '[any key] back'
+      display_read_key >/dev/null
+      ;;
+    sequence)
+      image_ids=()
+      ids=$(sequence_image_ids "$target")
+      while IFS= read -r id; do
+        [ -n "$id" ] || continue
+        image_ids+=("$id")
+      done <<<"$ids"
+      display_sequence_browser "$target" "${image_ids[@]}"
+      ;;
+  esac
+}
+
 display_previews() {
   local grid
   local help
@@ -325,7 +351,7 @@ display_pager() {
     if [ ! -t 0 ] || [ ! -t 1 ]; then
       return 0
     fi
-    printf '[number] show [k] previous [j] next [q] quit: '
+    printf '[number] select [k] previous [j] next [q] quit: '
     key=$(display_read_key)
     if case "$key" in [0-9]) true ;; *) false ;; esac; then
       IFS= read -r rest </dev/tty
@@ -350,15 +376,10 @@ display_pager() {
         start=$((page * limit))
         end=$((start + limit))
         if ((end > total)); then end=$total; fi
-        if ((selected >= start && selected < end)) &&
-          [ -n "${DISPLAY_SELECT_COMMAND:-}" ]; then
+        if ((selected >= start && selected < end)); then
           position=$((selected + 1))
           target=${!position}
-          "$DISPLAY_SELECT_COMMAND" "$target"
-          if [ "$(object_type "$target")" = image ]; then
-            printf '[any key] back'
-            display_read_key >/dev/null
-          fi
+          display_target "$target"
         fi
         ;;
     esac

@@ -14,6 +14,7 @@ source_modules \
   utils/profile.sh \
   utils/object.sh \
   utils/image.sh \
+  utils/sequence.sh \
   utils/tag.sh \
   utils/search.sh \
   utils/display.sh
@@ -26,7 +27,6 @@ main() {
   local -a tags
   local -a result_targets
   DISPLAY_GRID_COLS=auto
-  DISPLAY_SELECT_COMMAND="$ROOT_DIR/show"
   limit=auto
   tags=()
   result_targets=()
