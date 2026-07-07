@@ -88,6 +88,33 @@ display_image() {
   chafa "$path"
 }
 
+display_image_browser() {
+  local id
+  local key
+  id=$1
+  while :; do
+    printf '\033[2J\033[H'
+    display_image "$id"
+    printf '[a] add tag  [r] remove tag  [d] remove image  [b] back'
+    key=$(display_read_key)
+    printf '\n'
+    case "$key" in
+      a | A)
+        if action_tag_add "$id"; then return 10; fi
+        ;;
+      r | R)
+        if action_tag_remove "$id"; then return 10; fi
+        ;;
+      d | D)
+        if action_remove "$id"; then return 10; fi
+        ;;
+      b | B | q | Q)
+        return 0
+        ;;
+    esac
+  done
+}
+
 display_sequence_browser() {
   local sequence_id
   local total
@@ -182,7 +209,8 @@ display_sequence_browser() {
       printf '\033[%s;1H\n' "$rows"
       return 1
     fi
-    printf '\033[%s;1H[k] 이전  [j] 다음  [q] 종료' "$rows"
+    printf '\033[%s;1H[k] previous  [j] next  [a] add tag  ' "$rows"
+    printf '[r] remove tag  [x] remove image  [d] remove sequence  [b] back'
     key=$(display_read_key)
     case "$key" in
       k | K | $'\033[A')
@@ -191,7 +219,22 @@ display_sequence_browser() {
       j | J | $'\033[B')
         if ((selected + 1 < total)); then selected=$((selected + 1)); fi
         ;;
-      q | Q)
+      a | A)
+        if action_tag_add "$sequence_id"; then return 10; fi
+        ;;
+      r | R)
+        if action_tag_remove "$sequence_id"; then return 10; fi
+        ;;
+      x | X)
+        if action_sequence_image_remove "$sequence_id" "${ids[$selected]}" \
+          "$((selected + 1))"; then
+          return 10
+        fi
+        ;;
+      d | D)
+        if action_remove "$sequence_id"; then return 10; fi
+        ;;
+      b | B | q | Q)
         printf '\033[2J\033[H'
         return 0
         ;;
@@ -209,9 +252,7 @@ display_target() {
   type=$(object_type "$target")
   case "$type" in
     image)
-      display_image "$target"
-      printf '[any key] back'
-      display_read_key >/dev/null
+      display_image_browser "$target"
       ;;
     sequence)
       image_ids=()
@@ -337,8 +378,11 @@ display_pager() {
     return 0
   fi
   pages=$(((total + limit - 1) / limit))
-  page=0
+  page=${DISPLAY_PAGE:-0}
+  if ((page >= pages)); then page=$((pages - 1)); fi
+  if ((page < 0)); then page=0; fi
   while :; do
+    DISPLAY_PAGE=$page
     if [ -t 0 ] && [ -t 1 ]; then
       printf '\033[2J\033[H'
     fi
@@ -374,7 +418,16 @@ display_pager() {
         if ((selected >= start && selected < end)); then
           position=$((selected + 1))
           target=${!position}
-          display_target "$target"
+          if display_target "$target"; then
+            continue
+          else
+            rest=$?
+          fi
+          if [ "$rest" -eq 10 ]; then
+            DISPLAY_PAGE=$page
+            return 10
+          fi
+          return "$rest"
         fi
         ;;
     esac

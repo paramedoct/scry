@@ -17,6 +17,7 @@ source_modules \
   utils/sequence.sh \
   utils/tag.sh \
   utils/search.sh \
+  utils/action.sh \
   utils/display.sh
 
 main() {
@@ -24,6 +25,7 @@ main() {
   local targets
   local arg
   local grid_cols
+  local status
   local -a tags
   local -a result_targets
   DISPLAY_GRID_COLS=auto
@@ -56,12 +58,21 @@ main() {
     display_validate_limit "$limit"
   fi
   profile_prepare
-  targets=$(search_targets "${tags[@]}")
-  while IFS= read -r arg; do
-    [ -n "$arg" ] || continue
-    result_targets+=("$arg")
-  done <<<"$targets"
-  display_pager "$limit" "${result_targets[@]}"
+  DISPLAY_PAGE=0
+  while :; do
+    result_targets=()
+    targets=$(search_targets "${tags[@]}")
+    while IFS= read -r arg; do
+      [ -n "$arg" ] || continue
+      result_targets+=("$arg")
+    done <<<"$targets"
+    if display_pager "$limit" "${result_targets[@]}"; then
+      return 0
+    else
+      status=$?
+    fi
+    [ "$status" -eq 10 ] || return "$status"
+  done
 }
 
 main "$@"

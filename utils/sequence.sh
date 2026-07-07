@@ -99,3 +99,42 @@ WHERE images.object_id = $id
 ORDER BY images.position;
 "
 }
+
+sequence_image_remove() {
+  local sequence_id
+  local image_id
+  local record
+  local sha
+  local artist
+  local object_id
+  local position
+  local count
+  local path
+  sequence_id=$1
+  image_id=$2
+  sequence_require "$sequence_id" >/dev/null
+  record=$(image_file_require "$image_id")
+  IFS=$'\t' read -r _ sha artist _ _ object_id position <<<"$record"
+  if [ "$object_id" != "$sequence_id" ]; then
+    echo "image is not in sequence: $image_id" >&2
+    return 1
+  fi
+  count=$(db_value "SELECT count(*) FROM images WHERE object_id = $sequence_id;")
+  if [ "$count" -eq 1 ]; then
+    sequence_remove "$sequence_id"
+    return 0
+  fi
+  db_run "
+BEGIN IMMEDIATE;
+DELETE FROM images WHERE id = $image_id AND object_id = $sequence_id;
+UPDATE images SET position = position + $count
+WHERE object_id = $sequence_id AND position > $position;
+UPDATE images SET position = position - $count - 1
+WHERE object_id = $sequence_id AND position > $count;
+UPDATE objects SET type = 'image'
+WHERE id = $sequence_id AND $count = 2;
+COMMIT;
+"
+  path=$(image_path "$artist" "$sha")
+  rm -f -- "$path"
+}
