@@ -38,8 +38,14 @@ display_read_key() {
   local rest
   IFS= read -r -n 1 key </dev/tty
   if [ "$key" = $'\033' ]; then
-    IFS= read -r -n 2 rest </dev/tty
-    key=$key$rest
+    rest=
+    if IFS= read -r -t 0.1 -n 1 rest </dev/tty && [ "$rest" = '[' ]; then
+      key=$key$rest
+      rest=
+      if IFS= read -r -t 0.1 -n 1 rest </dev/tty; then
+        key=$key$rest
+      fi
+    fi
   fi
   printf '%s' "$key"
 }
@@ -83,21 +89,24 @@ display_image() {
     echo "stored image not found: $path" >&2
     return 1
   fi
-  printf 'id: %s  type: image  artist: %s\n' "$shown_id" "$artist"
-  printf 'tags: %s\n' "$tags"
+  printf 'image %s  ·  %s  ·  tags %s\n' "$shown_id" "$artist" "$tags"
   chafa "$path"
 }
 
 display_image_browser() {
   local id
   local key
+  local message
   id=$1
+  message=
   while :; do
     printf '\033[2J\033[H'
     display_image "$id"
-    printf '[a] add tag  [r] remove tag  [d] remove image  [b] back'
+    [ -z "$message" ] || printf '%s\n' "$message"
+    printf '[a] tag  [r] untag  [d] delete  [q] back: '
     key=$(display_read_key)
     printf '\n'
+    message=
     case "$key" in
       a | A)
         if action_tag_add "$id"; then return 10; fi
@@ -108,9 +117,10 @@ display_image_browser() {
       d | D)
         if action_remove "$id"; then return 10; fi
         ;;
-      b | B | q | Q)
+      b | B | q | Q | $'\033')
         return 0
         ;;
+      *) message="unknown key: $key" ;;
     esac
   done
 }
@@ -138,6 +148,7 @@ display_sequence_browser() {
   local sequence
   local label
   local key
+  local message
   local path
   local -a ids
   local -a paths
@@ -169,18 +180,19 @@ display_sequence_browser() {
     tag_values+=("$tags")
   done
   selected=0
+  message=
   while :; do
     rows=24
     cols=80
     read -r rows cols < <(stty size </dev/tty 2>/dev/null || printf '24 80\n')
     if ((rows < 10)); then rows=10; fi
     if ((cols < 50)); then cols=50; fi
-    list_width=$((cols / 3))
-    if ((list_width < 24)); then list_width=24; fi
-    if ((list_width > 40)); then list_width=40; fi
+    list_width=$((cols / 4))
+    if ((list_width < 20)); then list_width=20; fi
+    if ((list_width > 32)); then list_width=32; fi
     image_width=$((cols - list_width - 3))
-    image_height=$((rows - 4))
-    visible=$((rows - 5))
+    image_height=$((rows - 2))
+    visible=$((rows - 2))
     start=$((selected - visible / 2))
     if ((start < 0)); then start=0; fi
     if ((start + visible > total)); then start=$((total - visible)); fi
@@ -188,10 +200,9 @@ display_sequence_browser() {
     end=$((start + visible))
     if ((end > total)); then end=$total; fi
     printf '\033[2J\033[H'
-    printf 'id: %s  type: sequence  image: %s/%s  artist: %s  tags: %s\n' \
+    printf 'sequence %s  ·  %s/%s  ·  %s  ·  tags %s\n' \
       "$sequence_id" "$((selected + 1))" "$total" \
       "${artists[$selected]}" "${tag_values[$selected]}"
-    printf '%-*s |\n' "$list_width" "images"
     index=$start
     while ((index < end)); do
       label=$(printf '%3s  %s' "$((index + 1))" "${artists[$index]}")
@@ -209,15 +220,26 @@ display_sequence_browser() {
       printf '\033[%s;1H\n' "$rows"
       return 1
     fi
-    printf '\033[%s;1H[k] previous  [j] next  [a] add tag  ' "$rows"
-    printf '[r] remove tag  [x] remove image  [d] remove sequence  [b] back'
+    printf '\033[%s;1H' "$rows"
+    [ -z "$message" ] || printf '%s  ' "$message"
+    printf '↑/↓  [a] tag  [r] untag  [x] remove image  '
+    printf '[d] delete  [q] back: '
     key=$(display_read_key)
+    message=
     case "$key" in
-      k | K | $'\033[A')
-        if ((selected > 0)); then selected=$((selected - 1)); fi
+      $'\033[A')
+        if ((selected > 0)); then
+          selected=$((selected - 1))
+        else
+          message='first image'
+        fi
         ;;
-      j | J | $'\033[B')
-        if ((selected + 1 < total)); then selected=$((selected + 1)); fi
+      $'\033[B')
+        if ((selected + 1 < total)); then
+          selected=$((selected + 1))
+        else
+          message='last image'
+        fi
         ;;
       a | A)
         if action_tag_add "$sequence_id"; then return 10; fi
@@ -234,10 +256,11 @@ display_sequence_browser() {
       d | D)
         if action_remove "$sequence_id"; then return 10; fi
         ;;
-      b | B | q | Q)
+      b | B | q | Q | $'\033')
         printf '\033[2J\033[H'
         return 0
         ;;
+      *) message="unknown key: $key" ;;
     esac
   done
 }
@@ -369,6 +392,8 @@ display_pager() {
   local end
   local position
   local target
+  local message
+  local redraw
   limit=$1
   shift
   display_validate_limit "$limit"
@@ -381,35 +406,50 @@ display_pager() {
   page=${DISPLAY_PAGE:-0}
   if ((page >= pages)); then page=$((pages - 1)); fi
   if ((page < 0)); then page=0; fi
+  message=
+  redraw=1
   while :; do
     DISPLAY_PAGE=$page
-    if [ -t 0 ] && [ -t 1 ]; then
-      printf '\033[2J\033[H'
+    if [ "$redraw" -eq 1 ]; then
+      if [ -t 0 ] && [ -t 1 ]; then
+        printf '\033[2J\033[H'
+      fi
+      display_page "$page" "$limit" "$@"
+      if [ ! -t 0 ] || [ ! -t 1 ]; then
+        return 0
+      fi
     fi
-    display_page "$page" "$limit" "$@"
-    if [ ! -t 0 ] || [ ! -t 1 ]; then
-      return 0
-    fi
-    printf '[number] select [k] previous [j] next [q] quit: '
+    redraw=1
+    printf '[%s/%s] ' "$((page + 1))" "$pages"
+    [ -z "$message" ] || printf '%s  ' "$message"
     key=$(display_read_key)
     if case "$key" in [0-9]) true ;; *) false ;; esac; then
       IFS= read -r rest </dev/tty
       key=$key$rest
     fi
     printf '\n'
+    message=
     case "$key" in
-      k | K | $'\033[A')
+      $'\033[D')
         if ((page > 0)); then
           page=$((page - 1))
+        else
+          message='first page'
         fi
         ;;
-      j | J | $'\033[B')
+      $'\033[C')
         if ((page + 1 < pages)); then
           page=$((page + 1))
+        else
+          message='last page'
         fi
         ;;
-      q | Q) return 0 ;;
-      *[!0-9]* | '') ;;
+      q | Q | $'\033') return 0 ;;
+      '') ;;
+      *[!0-9]*)
+        printf '\033[1A\r\033[2K'
+        redraw=0
+        ;;
       *)
         selected=$((10#$key - 1))
         start=$((page * limit))
@@ -428,6 +468,8 @@ display_pager() {
             return 10
           fi
           return "$rest"
+        else
+          message="selection is not on this page: $key"
         fi
         ;;
     esac
