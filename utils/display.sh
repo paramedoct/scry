@@ -5,6 +5,10 @@ display_validate_limit() {
       return 1
       ;;
   esac
+  if [ "$1" -gt 10 ]; then
+    echo "limit must not exceed 10: $1" >&2
+    return 1
+  fi
 }
 
 display_auto_layout() {
@@ -22,9 +26,10 @@ display_auto_layout() {
   esac
   grid_cols=$((cols / 20))
   if ((grid_cols < 1)); then grid_cols=1; fi
+  if ((grid_cols > 5)); then grid_cols=5; fi
   grid_rows=1
   limit=$grid_cols
-  while ((grid_cols * grid_rows <= 200)); do
+  while ((grid_rows <= 2)); do
     required=$((4 + grid_rows * 16))
     if ((required > rows)); then break; fi
     limit=$((grid_cols * grid_rows))
@@ -378,7 +383,7 @@ ORDER BY position LIMIT 1;
         echo "stored image not found: $path" >&2
         return 1
       fi
-      preview=$(printf '%s/[%s]' "$preview_dir" "$((index + 1))")
+      preview=$(printf '%s/[%s]' "$preview_dir" "$((index - start))")
       ln -s "$path" "$preview"
       paths+=("$preview")
     fi
@@ -433,12 +438,8 @@ display_pager() {
     redraw=1
     printf '[%s/%s] ' "$((page + 1))" "$pages"
     [ -z "$message" ] || printf '%s ' "$message"
-    printf '←/→ number [q]quit: '
+    printf '←/→ [0-9] [q]quit: '
     key=$(display_read_key)
-    if case "$key" in [0-9]) true ;; *) false ;; esac; then
-      IFS= read -r rest </dev/tty
-      key=$key$rest
-    fi
     printf '\n'
     message=
     case "$key" in
@@ -458,15 +459,15 @@ display_pager() {
         ;;
       q | Q | $'\033') return 0 ;;
       '') ;;
-      *[!0-9]*)
+      *[!0-9]* | ??*)
         printf '\033[1A\r\033[2K'
         redraw=0
         ;;
       *)
-        selected=$((10#$key - 1))
         start=$((page * limit))
         end=$((start + limit))
         if ((end > total)); then end=$total; fi
+        selected=$((start + 10#$key))
         if ((selected >= start && selected < end)); then
           position=$((selected + 1))
           target=${!position}

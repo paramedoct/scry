@@ -52,10 +52,13 @@ main() {
       read -r limit grid_cols < <(display_auto_layout)
       DISPLAY_GRID_COLS=$grid_cols
     else
-      limit=12
+      limit=10
+      DISPLAY_GRID_COLS=5
     fi
   else
     display_validate_limit "$limit"
+    limit=$((10#$limit))
+    DISPLAY_GRID_COLS=$(((limit + 1) / 2))
   fi
   profile_prepare
   DISPLAY_PAGE=0
