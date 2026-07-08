@@ -38,6 +38,10 @@ display_auto_layout() {
   printf '%s %s\n' "$limit" "$grid_cols"
 }
 
+display_clear_history() {
+  printf '\033[H\033[2J\033[3J'
+}
+
 display_read_key() {
   local key
   local rest
@@ -143,6 +147,7 @@ display_sequence_browser() {
   local sequence_id
   local total
   local selected
+  local shown_selected
   local rows
   local cols
   local list_width
@@ -194,6 +199,7 @@ display_sequence_browser() {
     tag_values+=("$tags")
   done
   selected=0
+  shown_selected=-1
   message=
   while :; do
     rows=24
@@ -213,12 +219,17 @@ display_sequence_browser() {
     if ((start < 0)); then start=0; fi
     end=$((start + visible))
     if ((end > total)); then end=$total; fi
-    printf '\033[2J\033[H'
+    if ((shown_selected >= 0 && shown_selected != selected)); then
+      display_clear_history
+    else
+      printf '\033[2J\033[H'
+    fi
     if ! chafa --animate on --duration 0 --align top,left \
       --size "${image_width}x${image_height}" "${paths[$selected]}"; then
       printf '\033[%s;1H\n' "$rows"
       return 1
     fi
+    shown_selected=$selected
     printf '\033[1;%sHsequence %s %s/%s' "$((image_width + 2))" \
       "$sequence_id" "$((selected + 1))" "$total"
     printf '\033[2;%sHartist %s' "$((image_width + 2))" \
@@ -409,6 +420,7 @@ display_pager() {
   local position
   local target
   local redraw
+  local shown_page
   limit=$1
   shift
   display_validate_limit "$limit"
@@ -422,13 +434,19 @@ display_pager() {
   if ((page >= pages)); then page=$((pages - 1)); fi
   if ((page < 0)); then page=0; fi
   redraw=1
+  shown_page=-1
   while :; do
     DISPLAY_PAGE=$page
     if [ "$redraw" -eq 1 ]; then
       if [ -t 0 ] && [ -t 1 ]; then
-        printf '\033[2J\033[H'
+        if ((shown_page >= 0 && shown_page != page)); then
+          display_clear_history
+        else
+          printf '\033[2J\033[H'
+        fi
       fi
       display_page "$page" "$limit" "$@"
+      shown_page=$page
       if [ ! -t 0 ] || [ ! -t 1 ]; then
         return 0
       fi
@@ -448,7 +466,10 @@ display_pager() {
           page=$((page + 1))
         fi
         ;;
-      q | Q | $'\033') return 0 ;;
+      q | Q | $'\033')
+        display_clear_history
+        return 0
+        ;;
       '') ;;
       *[!0-9]* | ??*)
         printf '\033[1A\r\033[2K'
@@ -462,10 +483,19 @@ display_pager() {
         if ((selected >= start && selected < end)); then
           position=$((selected + 1))
           target=${!position}
+          if [ -t 0 ] && [ -t 1 ]; then
+            display_clear_history
+          fi
           if display_target "$target"; then
+            if [ -t 0 ] && [ -t 1 ]; then
+              display_clear_history
+            fi
             continue
           else
             rest=$?
+          fi
+          if [ -t 0 ] && [ -t 1 ]; then
+            display_clear_history
           fi
           if [ "$rest" -eq 10 ]; then
             DISPLAY_PAGE=$page
