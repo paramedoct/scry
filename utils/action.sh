@@ -31,33 +31,16 @@ action_tag_remove() {
   local object_id
   local values
   local value
-  local choice
-  local index
-  local -a tags
   object_id=$1
-  tags=()
   values=$(tag_list "$object_id")
-  while IFS= read -r value; do
-    [ -n "$value" ] || continue
-    tags+=("$value")
-  done <<<"$values"
-  if [ "${#tags[@]}" -eq 0 ]; then
+  if [ -z "$values" ]; then
     printf 'no tags to remove\n' >/dev/tty
     return 1
   fi
-  index=0
-  while [ "$index" -lt "${#tags[@]}" ]; do
-    printf '%s) %s\n' "$((index + 1))" "${tags[$index]}" >/dev/tty
-    index=$((index + 1))
-  done
-  choice=$(action_read_line 'tag number to remove: ')
-  case "$choice" in
-    '' | *[!0-9]* | 0) return 1 ;;
-  esac
-  if [ "$choice" -gt "${#tags[@]}" ]; then
-    return 1
-  fi
-  tag_remove "$object_id" "${tags[$((choice - 1))]}"
+  printf '%s\n' "$values" >/dev/tty
+  value=$(action_read_line 'tag to remove: ')
+  [ -n "$value" ] || return 1
+  tag_remove "$object_id" "$value"
 }
 
 action_remove() {
