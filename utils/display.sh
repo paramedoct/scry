@@ -147,20 +147,12 @@ display_sequence_browser() {
   local shown_selected
   local rows
   local cols
-  local list_width
-  local image_width
-  local image_height
-  local visible
-  local start
-  local end
-  local index
   local id
   local record
   local info
   local sha
   local artist
   local tags
-  local label
   local key
   local message
   local path
@@ -201,60 +193,34 @@ display_sequence_browser() {
     cols=80
     read -r rows cols < <(stty size </dev/tty 2>/dev/null || printf '24 80\n')
     if ((rows < 10)); then rows=10; fi
-    if ((cols < 50)); then cols=50; fi
-    list_width=$((cols / 4))
-    if ((list_width < 20)); then list_width=20; fi
-    if ((list_width > 32)); then list_width=32; fi
-    image_width=$((cols - list_width - 1))
-    image_height=$((rows - 1))
-    visible=$((rows - 5))
-    start=$((selected - visible / 2))
-    if ((start < 0)); then start=0; fi
-    if ((start + visible > total)); then start=$((total - visible)); fi
-    if ((start < 0)); then start=0; fi
-    end=$((start + visible))
-    if ((end > total)); then end=$total; fi
+    if ((cols < 20)); then cols=20; fi
     if ((shown_selected >= 0 && shown_selected != selected)); then
       display_clear_history
     else
       printf '\033[2J\033[H'
     fi
     if ! chafa --animate on --duration 0 --align top,left \
-      --size "${image_width}x${image_height}" "${paths[$selected]}"; then
+      --size "${cols}x$((rows - 5))" "${paths[$selected]}"; then
       printf '\033[%s;1H\n' "$rows"
       return 1
     fi
     shown_selected=$selected
-    printf '\033[1;%sHartist %s' "$((image_width + 2))" \
-      "${artists[$selected]}"
-    printf '\033[2;%sHtags %s' "$((image_width + 2))" \
-      "${tag_values[$selected]}"
-    index=$start
-    while ((index < end)); do
-      label=$(printf '%s %s' "$((index + 1))" "${artists[$index]}")
-      label=${label:0:$((list_width - 1))}
-      printf '\033[%s;%sH' "$((index - start + 5))" "$((image_width + 2))"
-      if ((index == selected)); then
-        printf '\033[1;7m%s\033[0m' "$label"
-      else
-        printf '%s' "$label"
-      fi
-      index=$((index + 1))
-    done
-    printf '\033[%s;1H' "$rows"
-    [ -z "$message" ] || printf '%s ' "$message"
+    printf 'artist %s\n' "${artists[$selected]}"
+    printf 'tags %s\n' "${tag_values[$selected]}"
+    [ -z "$message" ] || printf '%s\n' "$message"
     printf '[%s/%s]' "$((selected + 1))" "$total"
     key=$(display_read_key)
+    printf '\n'
     message=
     case "$key" in
-      $'\033[A')
+      $'\033[A' | $'\033[D')
         if ((selected > 0)); then
           selected=$((selected - 1))
         else
           message='first image'
         fi
         ;;
-      $'\033[B')
+      $'\033[B' | $'\033[C')
         if ((selected + 1 < total)); then
           selected=$((selected + 1))
         else
@@ -449,12 +415,12 @@ display_pager() {
     key=$(display_read_key)
     printf '\n'
     case "$key" in
-      $'\033[D')
+      $'\033[A' | $'\033[D')
         if ((page > 0)); then
           page=$((page - 1))
         fi
         ;;
-      $'\033[C')
+      $'\033[B' | $'\033[C')
         if ((page + 1 < pages)); then
           page=$((page + 1))
         fi
