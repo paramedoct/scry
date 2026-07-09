@@ -84,9 +84,7 @@ display_image() {
   local sha
   local artist
   local info
-  local shown_id
   local tags
-  local sequence
   local path
   local rows
   local cols
@@ -94,7 +92,7 @@ display_image() {
   record=$(image_require "$id")
   IFS=$'\t' read -r _ sha artist _ <<<"$record"
   info=$(display_info "$id")
-  IFS=$'\t' read -r shown_id artist tags <<<"$info"
+  IFS=$'\t' read -r _ artist tags <<<"$info"
   path=$(image_path "$artist" "$sha")
   if [ ! -r "$path" ]; then
     echo "stored image not found: $path" >&2
@@ -106,7 +104,6 @@ display_image() {
   if ((rows < 10)); then rows=10; fi
   if ((cols < 20)); then cols=20; fi
   chafa --align top,left --size "${cols}x$((rows - 5))" "$path"
-  printf 'image %s\n' "$shown_id"
   printf 'artist %s\n' "$artist"
   printf 'tags %s\n' "$tags"
 }
@@ -121,7 +118,7 @@ display_image_browser() {
     printf '\033[2J\033[H'
     display_image "$id"
     [ -z "$message" ] || printf '%s\n' "$message"
-    printf '[a]tag [r]untag [d]delete [q]back: '
+    printf '[1/1]'
     key=$(display_read_key)
     printf '\n'
     message=
@@ -162,9 +159,7 @@ display_sequence_browser() {
   local info
   local sha
   local artist
-  local shown_id
   local tags
-  local sequence
   local label
   local key
   local message
@@ -188,7 +183,7 @@ display_sequence_browser() {
     record=$(image_file_require "$id")
     IFS=$'\t' read -r _ sha artist _ <<<"$record"
     info=$(display_info "$sequence_id")
-    IFS=$'\t' read -r shown_id artist tags <<<"$info"
+    IFS=$'\t' read -r _ artist tags <<<"$info"
     path=$(image_path "$artist" "$sha")
     if [ ! -r "$path" ]; then
       echo "stored image not found: $path" >&2
@@ -230,11 +225,9 @@ display_sequence_browser() {
       return 1
     fi
     shown_selected=$selected
-    printf '\033[1;%sHsequence %s %s/%s' "$((image_width + 2))" \
-      "$sequence_id" "$((selected + 1))" "$total"
-    printf '\033[2;%sHartist %s' "$((image_width + 2))" \
+    printf '\033[1;%sHartist %s' "$((image_width + 2))" \
       "${artists[$selected]}"
-    printf '\033[3;%sHtags %s' "$((image_width + 2))" \
+    printf '\033[2;%sHtags %s' "$((image_width + 2))" \
       "${tag_values[$selected]}"
     index=$start
     while ((index < end)); do
@@ -250,7 +243,7 @@ display_sequence_browser() {
     done
     printf '\033[%s;1H' "$rows"
     [ -z "$message" ] || printf '%s ' "$message"
-    printf '↑/↓ [a]tag [r]untag [x]remove [d]delete [q]back: '
+    printf '[%s/%s]' "$((selected + 1))" "$total"
     key=$(display_read_key)
     message=
     case "$key" in
