@@ -3,7 +3,7 @@ album_validate() {
   album=$1
   case "$album" in
     '' | '.' | '..' | *:* | */*)
-      echo "invalid album: $album" >&2
+      echo "invalid cat: $album" >&2
       return 1
       ;;
   esac
@@ -14,7 +14,7 @@ character_validate() {
   character=$1
   case "$character" in
     '' | '.' | '..' | *:* | */*)
-      echo "invalid character: $character" >&2
+      echo "invalid topic: $character" >&2
       return 1
       ;;
   esac
@@ -35,7 +35,7 @@ album_parse_add_location() {
     *:*:*) ;;
     *:*) ;;
     *)
-      echo "album is required: $location" >&2
+      echo "cat is required: $location" >&2
       return 1
       ;;
   esac
@@ -51,7 +51,7 @@ album_parse_add_location() {
   if [ -n "$character" ]; then
     character_validate "$character" || return 1
   elif [ "$rest" != "$album" ]; then
-    echo "invalid character: $character" >&2
+    echo "invalid topic: $character" >&2
     return 1
   fi
   printf '%s\t%s\t%s\n' "$artist" "$album" "$character"

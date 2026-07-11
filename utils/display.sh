@@ -124,20 +124,17 @@ display_metadata() {
   local artist
   local album
   local character
-  local mime
   local sha
   rows=$1
   artist=$2
   album=$3
   character=$4
-  mime=$5
-  sha=$6
+  sha=$5
   printf '\033[%s;1H' "$((rows - 6))"
   pair_reset
   pair_add artist "$artist"
-  pair_add album "$album"
-  pair_add character "$character"
-  pair_add mime "$mime"
+  pair_add cat "$album"
+  pair_add topic "$character"
   pair_add sha256 "$sha"
   pair_print
 }
@@ -151,13 +148,12 @@ display_image_browser() {
   local info
   local sha
   local artist
-  local mime
   local album
   local character
   local path
   id=$1
   record=$(image_require "$id")
-  IFS=$'\t' read -r _ sha artist mime _ <<<"$record"
+  IFS=$'\t' read -r _ sha artist _ <<<"$record"
   info=$(display_info "$id")
   IFS=$'\t' read -r _ artist album character <<<"$info"
   path=$(image_path "$artist" "$sha")
@@ -172,8 +168,7 @@ display_image_browser() {
     if ((rows < 10)); then rows=10; fi
     if ((cols < 20)); then cols=20; fi
     printf '\033[2J\033[H'
-    display_metadata "$rows" "$artist" "$album" "$character" \
-      "${mime#image/}" "$sha"
+    display_metadata "$rows" "$artist" "$album" "$character" "$sha"
     printf '\033[%s;1H\033[2K[1/1]' "$rows"
     printf '\033[H'
     display_image_start "$path" "$rows" "$cols"
@@ -208,7 +203,6 @@ display_sequence_browser() {
   local info
   local sha
   local artist
-  local mime
   local album
   local character
   local key
@@ -218,7 +212,6 @@ display_sequence_browser() {
   local -a artists
   local -a albums
   local -a characters
-  local -a mimes
   local -a shas
   sequence_id=$1
   shift
@@ -232,11 +225,10 @@ display_sequence_browser() {
   artists=()
   albums=()
   characters=()
-  mimes=()
   shas=()
   for id in "${ids[@]}"; do
     record=$(image_file_require "$id")
-    IFS=$'\t' read -r _ sha artist mime _ <<<"$record"
+    IFS=$'\t' read -r _ sha artist _ <<<"$record"
     info=$(display_info "$sequence_id")
     IFS=$'\t' read -r _ artist album character <<<"$info"
     path=$(image_path "$artist" "$sha")
@@ -248,7 +240,6 @@ display_sequence_browser() {
     artists+=("$artist")
     albums+=("$album")
     characters+=("$character")
-    mimes+=("${mime#image/}")
     shas+=("$sha")
   done
   selected=0
@@ -266,7 +257,7 @@ display_sequence_browser() {
     fi
     display_metadata "$rows" "${artists[$selected]}" \
       "${albums[$selected]}" "${characters[$selected]}" \
-      "${mimes[$selected]}" "${shas[$selected]}"
+      "${shas[$selected]}"
     printf '\033[%s;1H\033[2K[%s/%s]' "$rows" "$((selected + 1))" "$total"
     printf '\033[H'
     display_image_start "${paths[$selected]}" "$rows" "$cols"

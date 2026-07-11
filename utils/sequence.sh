@@ -48,11 +48,11 @@ VALUES ('sequence', $artist_id, $album_id, ${character_id:-NULL});"
       return 1
     fi
     if [ "$current_album_id" != "$album_id" ]; then
-      echo "sequence images must have the same album" >&2
+      echo "sequence images must have the same cat" >&2
       return 1
     fi
     if [ "$current_character_id" != "$character_id" ]; then
-      echo "sequence images must have the same character" >&2
+      echo "sequence images must have the same topic" >&2
       return 1
     fi
     statements="$statements
