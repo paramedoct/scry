@@ -52,6 +52,10 @@ display_cursor_show() {
   printf '\033[?25h'
 }
 
+display_cursor_position() {
+  printf '\033[%s;%sH' "$1" "$2"
+}
+
 display_read_key() {
   local key
   local rest
@@ -87,9 +91,11 @@ display_image_start() {
   local path
   local rows
   local cols
+  local col
   path=$1
   rows=$2
   cols=$3
+  col=$4
   (
     local image_pid
     trap '
@@ -106,11 +112,21 @@ display_image_start() {
     display_cursor_hide
   ) &
   DISPLAY_IMAGE_PID=$!
+  (
+    sleep 0.1
+    display_cursor_position "$rows" "$col"
+  ) &
+  DISPLAY_CURSOR_PID=$!
 }
 
 display_image_stop() {
   local status
   status=0
+  if kill -0 "$DISPLAY_CURSOR_PID" 2>/dev/null; then
+    kill "$DISPLAY_CURSOR_PID" 2>/dev/null || true
+  fi
+  wait "$DISPLAY_CURSOR_PID" 2>/dev/null || true
+  DISPLAY_CURSOR_PID=
   if kill -0 "$DISPLAY_IMAGE_PID" 2>/dev/null; then
     kill "$DISPLAY_IMAGE_PID" 2>/dev/null || true
   fi
@@ -171,12 +187,13 @@ display_image_browser() {
     display_metadata "$rows" "$artist" "$album" "$character" "$sha"
     printf '\033[%s;1H\033[2K[1/1]' "$rows"
     printf '\033[H'
-    display_image_start "$path" "$rows" "$cols"
+    display_image_start "$path" "$rows" "$cols" 6
     while :; do
       key=$(display_read_key)
       case "$key" in
         d | D | b | B | q | Q | $'\033') break ;;
       esac
+      display_cursor_position "$rows" 6
     done
     display_image_stop
     printf '\033[%s;1H\033[2K' "$rows"
@@ -207,6 +224,7 @@ display_sequence_browser() {
   local character
   local key
   local path
+  local pager
   local -a ids
   local -a paths
   local -a artists
@@ -258,9 +276,11 @@ display_sequence_browser() {
     display_metadata "$rows" "${artists[$selected]}" \
       "${albums[$selected]}" "${characters[$selected]}" \
       "${shas[$selected]}"
-    printf '\033[%s;1H\033[2K[%s/%s]' "$rows" "$((selected + 1))" "$total"
+    pager=$(printf '[%s/%s]' "$((selected + 1))" "$total")
+    printf '\033[%s;1H\033[2K%s' "$rows" "$pager"
     printf '\033[H'
-    display_image_start "${paths[$selected]}" "$rows" "$cols"
+    display_image_start "${paths[$selected]}" "$rows" "$cols" \
+      "$(( ${#pager} + 1 ))"
     while :; do
       key=$(display_read_key)
       case "$key" in
@@ -272,6 +292,7 @@ display_sequence_browser() {
           ;;
         x | X | d | D | b | B | q | Q | $'\033') break ;;
       esac
+      display_cursor_position "$rows" "$(( ${#pager} + 1 ))"
     done
     if ! display_image_stop; then
       printf '\033[%s;1H\n' "$rows"
@@ -464,6 +485,7 @@ display_pager() {
       if [ ! -t 0 ] || [ ! -t 1 ]; then
         return 0
       fi
+      display_cursor_hide
     fi
     redraw=1
     rows=24
