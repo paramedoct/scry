@@ -80,6 +80,7 @@ display_image() {
   local record
   local sha
   local artist
+  local mime
   local info
   local album
   local character
@@ -88,7 +89,7 @@ display_image() {
   local cols
   id=$1
   record=$(image_require "$id")
-  IFS=$'\t' read -r _ sha artist _ <<<"$record"
+  IFS=$'\t' read -r _ sha artist mime _ <<<"$record"
   info=$(display_info "$id")
   IFS=$'\t' read -r _ artist album character <<<"$info"
   path=$(image_path "$artist" "$sha")
@@ -101,10 +102,11 @@ display_image() {
   read -r rows cols < <(stty size </dev/tty 2>/dev/null || printf '24 80\n')
   if ((rows < 10)); then rows=10; fi
   if ((cols < 20)); then cols=20; fi
-  chafa --align top,left --size "${cols}x$((rows - 6))" "$path"
+  chafa --align top,left --size "${cols}x$((rows - 7))" "$path"
   printf 'artist %s\n' "$artist"
   printf 'album %s\n' "$album"
   printf 'character %s\n' "$character"
+  printf 'mime %s\n' "${mime#image/}"
   printf 'sha256 %s\n' "$sha"
 }
 
@@ -152,6 +154,7 @@ display_sequence_browser() {
   local info
   local sha
   local artist
+  local mime
   local album
   local character
   local key
@@ -162,6 +165,7 @@ display_sequence_browser() {
   local -a artists
   local -a albums
   local -a characters
+  local -a mimes
   local -a shas
   sequence_id=$1
   shift
@@ -175,10 +179,11 @@ display_sequence_browser() {
   artists=()
   albums=()
   characters=()
+  mimes=()
   shas=()
   for id in "${ids[@]}"; do
     record=$(image_file_require "$id")
-    IFS=$'\t' read -r _ sha artist _ <<<"$record"
+    IFS=$'\t' read -r _ sha artist mime _ <<<"$record"
     info=$(display_info "$sequence_id")
     IFS=$'\t' read -r _ artist album character <<<"$info"
     path=$(image_path "$artist" "$sha")
@@ -190,6 +195,7 @@ display_sequence_browser() {
     artists+=("$artist")
     albums+=("$album")
     characters+=("$character")
+    mimes+=("${mime#image/}")
     shas+=("$sha")
   done
   selected=0
@@ -207,7 +213,7 @@ display_sequence_browser() {
       printf '\033[2J\033[H'
     fi
     if ! chafa --animate on --duration 0 --align top,left \
-      --size "${cols}x$((rows - 6))" "${paths[$selected]}"; then
+      --size "${cols}x$((rows - 7))" "${paths[$selected]}"; then
       printf '\033[%s;1H\n' "$rows"
       return 1
     fi
@@ -215,6 +221,7 @@ display_sequence_browser() {
     printf 'artist %s\n' "${artists[$selected]}"
     printf 'album %s\n' "${albums[$selected]}"
     printf 'character %s\n' "${characters[$selected]}"
+    printf 'mime %s\n' "${mimes[$selected]}"
     printf 'sha256 %s\n' "${shas[$selected]}"
     [ -z "$message" ] || printf '%s\n' "$message"
     printf '\033[%s;1H\033[2K[%s/%s]' "$rows" "$((selected + 1))" "$total"
