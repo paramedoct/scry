@@ -99,7 +99,8 @@ display_image_start() {
       exit 143
     ' TERM
     chafa --probe off --format "$ARTS_DISPLAY_FORMAT" --animate on \
-      --align top,left --size "${cols}x$((rows - 7))" "$path" &
+      --duration infinite --align top,left \
+      --size "${cols}x$((rows - 7))" "$path" &
     image_pid=$!
     wait "$image_pid"
     display_cursor_hide
