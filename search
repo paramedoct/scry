@@ -3,7 +3,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 usage() {
-  echo "$0 [tag...] [--limit <count|auto>]" >&2
+  echo "$0 [artist|artist:album|:album] [--limit <count|auto>]" >&2
   exit 1
 }
 
@@ -14,8 +14,8 @@ source_modules \
   utils/profile.sh \
   utils/object.sh \
   utils/image.sh \
+  utils/album.sh \
   utils/sequence.sh \
-  utils/tag.sh \
   utils/search.sh \
   utils/action.sh \
   utils/display.sh
@@ -24,13 +24,15 @@ main() {
   local limit
   local targets
   local arg
+  local location
+  local location_set
   local grid_cols
   local status
-  local -a tags
   local -a result_targets
   DISPLAY_GRID_COLS=auto
   limit=auto
-  tags=()
+  location=
+  location_set=0
   result_targets=()
   while [ "$#" -gt 0 ]; do
     arg=$1
@@ -42,9 +44,21 @@ main() {
         shift
         ;;
       --limit=*) limit=${arg#--limit=} ;;
-      --) tags+=("$@"); break ;;
+      --)
+        [ "$#" -le 1 ] || usage
+        if [ "$#" -eq 1 ]; then
+          [ "$location_set" -eq 0 ] || usage
+          location=$1
+          location_set=1
+        fi
+        break
+        ;;
       -*) usage ;;
-      *) tags+=("$arg") ;;
+      *)
+        [ "$location_set" -eq 0 ] || usage
+        location=$arg
+        location_set=1
+        ;;
     esac
   done
   if [ "$limit" = auto ]; then
@@ -64,7 +78,11 @@ main() {
   DISPLAY_PAGE=0
   while :; do
     result_targets=()
-    targets=$(search_targets "${tags[@]}")
+    if [ "$location_set" -eq 1 ]; then
+      targets=$(search_targets "$location")
+    else
+      targets=$(search_targets)
+    fi
     while IFS= read -r arg; do
       [ -n "$arg" ] || continue
       result_targets+=("$arg")

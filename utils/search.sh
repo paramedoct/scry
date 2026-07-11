@@ -1,36 +1,44 @@
 search_targets() {
-  local tag
-  local tag_list
-  local tag_count
+  local location
+  local artist
+  local album
+  local where
   if [ "$#" -eq 0 ]; then
-    db_value "
+    where='1 = 1'
+  else
+    location=$1
+    case "$location" in
+      *:*:*)
+        echo "invalid location: $location" >&2
+        return 1
+        ;;
+      :*)
+        album=${location#:}
+        album_validate "$album" || return 1
+        where="albums.name = $(db_quote "$album")"
+        ;;
+      *:*)
+        artist=${location%%:*}
+        album=${location#*:}
+        image_validate_artist "$artist" || return 1
+        album_validate "$album" || return 1
+        where="artists.name = $(db_quote "$artist")
+  AND albums.name = $(db_quote "$album")"
+        ;;
+      *)
+        image_validate_artist "$location" || return 1
+        where="artists.name = $(db_quote "$location")"
+        ;;
+    esac
+  fi
+  db_value "
 SELECT objects.id
 FROM objects
 JOIN images ON images.object_id = objects.id
+JOIN artists ON artists.id = objects.artist_id
+JOIN albums ON albums.id = objects.album_id
+WHERE $where
 GROUP BY objects.id
 ORDER BY min(images.id), objects.id;
-"
-    return 0
-  fi
-  tag_list=
-  tag_count=0
-  for tag in "$@"; do
-    tag_validate "$tag"
-    if [ -n "$tag_list" ]; then
-      tag_list="$tag_list, "
-    fi
-    tag_list="$tag_list$(db_quote "$tag")"
-    tag_count=$((tag_count + 1))
-  done
-  db_value "
-SELECT objects.id
-  FROM objects
-  JOIN images ON images.object_id = objects.id
-  JOIN object_tags ON object_tags.object_id = objects.id
-  JOIN tags ON tags.id = object_tags.tag_id
-  WHERE tags.name IN ($tag_list)
-  GROUP BY objects.id
-  HAVING count(DISTINCT tags.name) = $tag_count
-  ORDER BY min(images.id), objects.id;
 "
 }

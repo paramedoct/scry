@@ -65,17 +65,10 @@ display_info() {
   local id
   id=$1
   db_value "
-SELECT objects.id || char(9) || artists.name || char(9) || COALESCE((
-         SELECT group_concat(name, ',') FROM (
-           SELECT tags.name AS name
-           FROM tags
-           JOIN object_tags ON object_tags.tag_id = tags.id
-           WHERE object_tags.object_id = objects.id
-           ORDER BY tags.name
-         )
-       ), '-')
+SELECT objects.id || char(9) || artists.name || char(9) || albums.name
 FROM objects
 JOIN artists ON artists.id = objects.artist_id
+JOIN albums ON albums.id = objects.album_id
 WHERE objects.id = $id;
 "
 }
@@ -86,7 +79,7 @@ display_image() {
   local sha
   local artist
   local info
-  local tags
+  local album
   local path
   local rows
   local cols
@@ -94,7 +87,7 @@ display_image() {
   record=$(image_require "$id")
   IFS=$'\t' read -r _ sha artist _ <<<"$record"
   info=$(display_info "$id")
-  IFS=$'\t' read -r _ artist tags <<<"$info"
+  IFS=$'\t' read -r _ artist album <<<"$info"
   path=$(image_path "$artist" "$sha")
   if [ ! -r "$path" ]; then
     echo "stored image not found: $path" >&2
@@ -107,7 +100,7 @@ display_image() {
   if ((cols < 20)); then cols=20; fi
   chafa --align top,left --size "${cols}x$((rows - 5))" "$path"
   printf 'artist %s\n' "$artist"
-  printf 'tags %s\n' "$tags"
+  printf 'album %s\n' "$album"
   printf 'sha256 %s\n' "$sha"
 }
 
@@ -132,12 +125,6 @@ display_image_browser() {
     printf '\033[%s;1H\033[2K' "$rows"
     message=
     case "$key" in
-      a | A)
-        if action_tag_add "$id"; then return 10; fi
-        ;;
-      r | R)
-        if action_tag_remove "$id"; then return 10; fi
-        ;;
       d | D)
         if action_remove "$id"; then return 10; fi
         ;;
@@ -161,14 +148,14 @@ display_sequence_browser() {
   local info
   local sha
   local artist
-  local tags
+  local album
   local key
   local message
   local path
   local -a ids
   local -a paths
   local -a artists
-  local -a tag_values
+  local -a albums
   local -a shas
   sequence_id=$1
   shift
@@ -180,13 +167,13 @@ display_sequence_browser() {
   }
   paths=()
   artists=()
-  tag_values=()
+  albums=()
   shas=()
   for id in "${ids[@]}"; do
     record=$(image_file_require "$id")
     IFS=$'\t' read -r _ sha artist _ <<<"$record"
     info=$(display_info "$sequence_id")
-    IFS=$'\t' read -r _ artist tags <<<"$info"
+    IFS=$'\t' read -r _ artist album <<<"$info"
     path=$(image_path "$artist" "$sha")
     if [ ! -r "$path" ]; then
       echo "stored image not found: $path" >&2
@@ -194,7 +181,7 @@ display_sequence_browser() {
     fi
     paths+=("$path")
     artists+=("$artist")
-    tag_values+=("$tags")
+    albums+=("$album")
     shas+=("$sha")
   done
   selected=0
@@ -218,7 +205,7 @@ display_sequence_browser() {
     fi
     shown_selected=$selected
     printf 'artist %s\n' "${artists[$selected]}"
-    printf 'tags %s\n' "${tag_values[$selected]}"
+    printf 'album %s\n' "${albums[$selected]}"
     printf 'sha256 %s\n' "${shas[$selected]}"
     [ -z "$message" ] || printf '%s\n' "$message"
     printf '\033[%s;1H\033[2K[%s/%s]' "$rows" "$((selected + 1))" "$total"
@@ -239,12 +226,6 @@ display_sequence_browser() {
         else
           message='last image'
         fi
-        ;;
-      a | A)
-        if action_tag_add "$sequence_id"; then return 10; fi
-        ;;
-      r | R)
-        if action_tag_remove "$sequence_id"; then return 10; fi
         ;;
       x | X)
         if action_sequence_image_remove "$sequence_id" "${ids[$selected]}" \

@@ -18,31 +18,6 @@ action_confirm() {
   esac
 }
 
-action_tag_add() {
-  local object_id
-  local value
-  object_id=$1
-  value=$(action_read_line 'tag to add: ')
-  [ -n "$value" ] || return 1
-  tag_add "$object_id" "$value"
-}
-
-action_tag_remove() {
-  local object_id
-  local values
-  local value
-  object_id=$1
-  values=$(tag_list "$object_id")
-  if [ -z "$values" ]; then
-    printf 'no tags to remove\n' >/dev/tty
-    return 1
-  fi
-  printf '%s\n' "$values" >/dev/tty
-  value=$(action_read_line 'tag to remove: ')
-  [ -n "$value" ] || return 1
-  tag_remove "$object_id" "$value"
-}
-
 action_remove() {
   local object_id
   local type

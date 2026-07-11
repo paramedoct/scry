@@ -5,7 +5,7 @@
 - manage image files and metadata from a CLI
 - store image metadata in SQLite
 - keep content-addressed image files grouped by artist
-- provide tag search and ordered sequence views through chafa
+- provide artist and album views with ordered sequences through chafa
 
 ## working style
 
