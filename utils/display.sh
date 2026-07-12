@@ -91,11 +91,11 @@ display_image_start() {
   local path
   local rows
   local cols
-  local col
+  local mime
   path=$1
   rows=$2
   cols=$3
-  col=$4
+  mime=$4
   (
     local image_pid
     trap '
@@ -104,29 +104,26 @@ display_image_start() {
       display_cursor_hide
       exit 143
     ' TERM
-    chafa --probe off --format "$ARTS_DISPLAY_FORMAT" --animate on \
-      --duration infinite --align top,left \
-      --size "${cols}x$((rows - 7))" "$path" &
+    display_cursor_position 1 1
+    if [ "$mime" = image/gif ]; then
+      chafa --probe off --format "$ARTS_DISPLAY_FORMAT" --animate on \
+        --duration infinite --align top,left \
+        --size "${cols}x$((rows - 7))" "$path" &
+    else
+      chafa --probe off --format "$ARTS_DISPLAY_FORMAT" --animate off \
+        --align top,left --size "${cols}x$((rows - 7))" "$path" &
+    fi
     image_pid=$!
     wait "$image_pid"
     display_cursor_hide
   ) &
   DISPLAY_IMAGE_PID=$!
-  (
-    sleep 0.1
-    display_cursor_position "$rows" "$col"
-  ) &
-  DISPLAY_CURSOR_PID=$!
 }
 
 display_image_stop() {
   local status
+  if [ -z "$DISPLAY_IMAGE_PID" ]; then return 0; fi
   status=0
-  if kill -0 "$DISPLAY_CURSOR_PID" 2>/dev/null; then
-    kill "$DISPLAY_CURSOR_PID" 2>/dev/null || true
-  fi
-  wait "$DISPLAY_CURSOR_PID" 2>/dev/null || true
-  DISPLAY_CURSOR_PID=
   if kill -0 "$DISPLAY_IMAGE_PID" 2>/dev/null; then
     kill "$DISPLAY_IMAGE_PID" 2>/dev/null || true
   fi
@@ -166,10 +163,11 @@ display_image_browser() {
   local artist
   local album
   local character
+  local mime
   local path
   id=$1
   record=$(image_require "$id")
-  IFS=$'\t' read -r _ sha artist _ <<<"$record"
+  IFS=$'\t' read -r _ sha artist mime _ <<<"$record"
   info=$(display_info "$id")
   IFS=$'\t' read -r _ artist album character <<<"$info"
   path=$(image_path "$artist" "$sha")
@@ -187,13 +185,12 @@ display_image_browser() {
     display_metadata "$rows" "$artist" "$album" "$character" "$sha"
     printf '\033[%s;1H\033[2K[1/1]' "$rows"
     printf '\033[H'
-    display_image_start "$path" "$rows" "$cols" 6
+    display_image_start "$path" "$rows" "$cols" "$mime"
     while :; do
       key=$(display_read_key)
       case "$key" in
         d | D | b | B | q | Q | $'\033') break ;;
       esac
-      display_cursor_position "$rows" 6
     done
     display_image_stop
     printf '\033[%s;1H\033[2K' "$rows"
@@ -222,6 +219,7 @@ display_sequence_browser() {
   local artist
   local album
   local character
+  local mime
   local key
   local path
   local pager
@@ -230,6 +228,7 @@ display_sequence_browser() {
   local -a artists
   local -a albums
   local -a characters
+  local -a mimes
   local -a shas
   sequence_id=$1
   shift
@@ -243,10 +242,11 @@ display_sequence_browser() {
   artists=()
   albums=()
   characters=()
+  mimes=()
   shas=()
   for id in "${ids[@]}"; do
     record=$(image_file_require "$id")
-    IFS=$'\t' read -r _ sha artist _ <<<"$record"
+    IFS=$'\t' read -r _ sha artist mime _ <<<"$record"
     info=$(display_info "$sequence_id")
     IFS=$'\t' read -r _ artist album character <<<"$info"
     path=$(image_path "$artist" "$sha")
@@ -258,6 +258,7 @@ display_sequence_browser() {
     artists+=("$artist")
     albums+=("$album")
     characters+=("$character")
+    mimes+=("$mime")
     shas+=("$sha")
   done
   selected=0
@@ -280,7 +281,7 @@ display_sequence_browser() {
     printf '\033[%s;1H\033[2K%s' "$rows" "$pager"
     printf '\033[H'
     display_image_start "${paths[$selected]}" "$rows" "$cols" \
-      "$(( ${#pager} + 1 ))"
+      "${mimes[$selected]}"
     while :; do
       key=$(display_read_key)
       case "$key" in
@@ -292,7 +293,6 @@ display_sequence_browser() {
           ;;
         x | X | d | D | b | B | q | Q | $'\033') break ;;
       esac
-      display_cursor_position "$rows" "$(( ${#pager} + 1 ))"
     done
     if ! display_image_stop; then
       printf '\033[%s;1H\n' "$rows"
