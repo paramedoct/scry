@@ -201,7 +201,10 @@ ORDER BY images.position;
         $'\033[C')
           ((image_selected + 1 < image_total)) && break
           ;;
-        x | X | d | D | b | B | q | Q | $'\033') break ;;
+        x | X)
+          [ "$type" = sequence ] && break
+          ;;
+        d | D | b | B | q | Q | $'\033') break ;;
       esac
     done
     if ! display_image_stop; then
