@@ -95,18 +95,15 @@ display_metadata() {
   local artist
   local album
   local character
-  local sequence
   rows=$1
   artist=$2
   album=$3
   character=$4
-  sequence=${5:-}
   printf '\033[%s;1H' "$((rows - 6))"
   pair_reset
   pair_add artist "$artist"
   pair_add cat "$album"
   pair_add topic "$character"
-  if [ -n "$sequence" ]; then pair_add position "$sequence"; fi
   pair_print
 }
 
@@ -130,8 +127,9 @@ display_browser() {
   local mime
   local key
   local path
-  local pager
-  local sequence
+  local search_pager
+  local image_pager
+  local search_col
   local position
   local -a image_ids
   total=$#
@@ -181,13 +179,23 @@ ORDER BY images.position;
     if ((rows < 10)); then rows=10; fi
     if ((cols < 20)); then cols=20; fi
     display_clear_history
-    sequence=
+    display_metadata "$rows" "$artist" "$album" "$character"
+    search_pager=$(printf '[%s/%s]' "$((selected + 1))" "$total")
+    search_col=$((cols - ${#search_pager} + 1))
+    printf '\033[%s;1H\033[2K' "$rows"
     if [ "$type" = sequence ]; then
-      sequence=$(printf '%s/%s' "$((image_selected + 1))" "$image_total")
+      image_pager=$(printf '[%s/%s]' "$((image_selected + 1))" "$image_total")
+      printf '%s' "$image_pager"
+      if ((search_col > ${#image_pager} + 1)); then
+        display_cursor_position "$rows" "$search_col"
+        printf '%s' "$search_pager"
+      else
+        printf ' %s' "$search_pager"
+      fi
+    else
+      display_cursor_position "$rows" "$search_col"
+      printf '%s' "$search_pager"
     fi
-    display_metadata "$rows" "$artist" "$album" "$character" "$sequence"
-    pager=$(printf '[%s/%s]' "$((selected + 1))" "$total")
-    printf '\033[%s;1H\033[2K%s' "$rows" "$pager"
     printf '\033[H'
     display_image_start "$path" "$rows" "$cols" "$mime"
     while :; do
