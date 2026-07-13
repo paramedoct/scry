@@ -183,18 +183,13 @@ ORDER BY images.position;
     search_pager=$(printf '[%s/%s]' "$((selected + 1))" "$total")
     search_col=$((cols - ${#search_pager} + 1))
     printf '\033[%s;1H\033[2K' "$rows"
-    if [ "$type" = sequence ]; then
-      image_pager=$(printf '[%s/%s]' "$((image_selected + 1))" "$image_total")
-      printf '%s' "$image_pager"
-      if ((search_col > ${#image_pager} + 1)); then
-        display_cursor_position "$rows" "$search_col"
-        printf '%s' "$search_pager"
-      else
-        printf ' %s' "$search_pager"
-      fi
-    else
+    image_pager=$(printf '[%s/%s]' "$((image_selected + 1))" "$image_total")
+    printf '%s' "$image_pager"
+    if ((search_col > ${#image_pager} + 1)); then
       display_cursor_position "$rows" "$search_col"
       printf '%s' "$search_pager"
+    else
+      printf ' %s' "$search_pager"
     fi
     printf '\033[H'
     display_image_start "$path" "$rows" "$cols" "$mime"
