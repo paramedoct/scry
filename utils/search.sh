@@ -10,7 +10,7 @@ search_targets() {
     topic=
   else
     fields=$(classification_parse_location "$1" search) || return 1
-    IFS=$'\t' read -r artist cat topic <<<"$fields"
+    IFS=: read -r artist cat topic <<<"$fields"
   fi
   where='1 = 1'
   if [ -n "$artist" ]; then

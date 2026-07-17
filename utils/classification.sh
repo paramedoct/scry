@@ -11,19 +11,6 @@ classification_validate_name() {
   esac
 }
 
-classification_validate_id() {
-  local type
-  local id
-  type=$1
-  id=$2
-  case "$id" in
-    '' | *[!0-9]*)
-      echo "invalid $type id: $id" >&2
-      return 1
-      ;;
-  esac
-}
-
 classification_parse_location() {
   local location
   local mode
@@ -31,40 +18,43 @@ classification_parse_location() {
   local cat
   local topic
   local rest
+  local depth
   location=$1
   mode=$2
+  artist=${location%%:*}
   cat=
   topic=
-  rest=
   case "$location" in
     *:*:*:*)
       echo "invalid location: $location" >&2
       return 1
       ;;
-    *) ;;
-  esac
-  artist=${location%%:*}
-  if [ "$artist" != "$location" ]; then
-    rest=${location#*:}
-    cat=${rest%%:*}
-    if [ "$cat" != "$rest" ]; then
+    *:*:*)
+      depth=3
+      rest=${location#*:}
+      cat=${rest%%:*}
       topic=${rest#*:}
       classification_validate_name topic "$topic" || return 1
-    fi
-  fi
+      ;;
+    *:*)
+      depth=2
+      cat=${location#*:}
+      ;;
+    *) depth=1 ;;
+  esac
   if [ "$mode" = add ]; then
-    if [ "$artist" = "$location" ]; then
+    if [ "$depth" -eq 1 ]; then
       echo "cat is required: $location" >&2
       return 1
     fi
     classification_validate_name artist "$artist" || return 1
     classification_validate_name cat "$cat" || return 1
-  elif [ "$artist" = "$location" ] || [ -n "$artist" ]; then
+  elif [ "$depth" -eq 1 ] || [ -n "$artist" ]; then
     classification_validate_name artist "$artist" || return 1
   fi
-  if [ "$mode" = search ] && [ "$artist" != "$location" ] &&
-    { [ "$cat" = "$rest" ] || [ -n "$cat" ]; }; then
+  if [ "$mode" = search ] &&
+    { [ "$depth" -eq 2 ] || [ -n "$cat" ]; }; then
     classification_validate_name cat "$cat" || return 1
   fi
-  printf '%s\t%s\t%s\n' "$artist" "$cat" "$topic"
+  printf '%s:%s:%s\n' "$artist" "$cat" "$topic"
 }

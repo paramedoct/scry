@@ -10,8 +10,8 @@ db_run() {
 }
 
 db_value() {
-  sqlite3 -batch -bail -noheader -cmd 'PRAGMA foreign_keys = ON;' \
-    "$SCRY_DB_FILE" "$1"
+  sqlite3 -batch -bail -noheader -separator $'\t' \
+    -cmd 'PRAGMA foreign_keys = ON;' "$SCRY_DB_FILE" "$1"
 }
 
 db_init() {

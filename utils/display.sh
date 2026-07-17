@@ -22,10 +22,6 @@ display_cursor_show() {
   printf '\033[?25h'
 }
 
-display_cursor_position() {
-  printf '\033[%s;%sH' "$1" "$2"
-}
-
 display_read_key() {
   local key
   local rest
@@ -62,7 +58,7 @@ display_image_start() {
       display_cursor_hide
       exit 143
     ' TERM
-    display_cursor_position 1 1
+    printf '\033[H'
     if [ "$mime" = image/gif ]; then
       chafa --probe off --format "$SCRY_DISPLAY_FORMAT" --animate on \
         --duration infinite --scale max --align top,left \
@@ -120,16 +116,7 @@ display_browser() {
   while :; do
     position=$((selected + 1))
     target=${!position}
-    record=$(db_value "
-SELECT id || char(9) || sha256 || char(9) || artist || char(9) || mime_type ||
-       char(9) || cat || char(9) || COALESCE(topic, '-')
-FROM images
-WHERE id = $target;
-")
-    [ -n "$record" ] || {
-      echo "image not found: $target" >&2
-      return 1
-    }
+    record=$(image_require "$target")
     IFS=$'\t' read -r id sha artist mime cat topic <<<"$record"
     path=$(image_path "$artist" "$sha")
     if [ ! -r "$path" ]; then

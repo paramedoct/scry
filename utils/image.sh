@@ -24,16 +24,13 @@ image_file_delete() {
 
 image_require() {
   local record
-  classification_validate_id image "${1:-}"
   record=$(db_value "
-SELECT images.id || char(9) || images.sha256 || char(9) ||
-       images.artist || char(9) || images.mime_type || char(9) ||
-       images.byte_size
+SELECT id, sha256, artist, mime_type, cat, COALESCE(topic, '-'), byte_size
 FROM images
 WHERE images.id = $1;
 ")
   if [ -z "$record" ]; then
-    echo "image file not found: $1" >&2
+    echo "image not found: $1" >&2
     return 1
   fi
   printf '%s\n' "$record"
@@ -56,13 +53,6 @@ image_add() {
   cat=$2
   topic=$3
   file=$4
-  classification_validate_name artist "$artist"
-  classification_validate_name cat "$cat"
-  if [ -n "$topic" ]; then classification_validate_name topic "$topic"; fi
-  if [ ! -f "$file" ] || [ ! -r "$file" ]; then
-    echo "image is not a readable file: $file" >&2
-    return 1
-  fi
   sha=$(image_sha256 "$file")
   existing_id=$(db_value \
     "SELECT id FROM images WHERE sha256 = $(db_quote "$sha");")
@@ -111,7 +101,7 @@ image_remove() {
   local artist
   id=$1
   record=$(image_require "$id")
-  IFS=$'\t' read -r _ sha artist _ _ <<<"$record"
+  IFS=$'\t' read -r _ sha artist _ _ _ _ <<<"$record"
   db_run "DELETE FROM images WHERE id = $id;"
   image_file_delete "$artist" "$sha"
 }
