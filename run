@@ -11,6 +11,7 @@ usage() {
 source "$ROOT_DIR/utils/source.sh"
 source_modules \
   utils/db.sh \
+  utils/query.sh \
   utils/environment.sh \
   utils/image.sh \
   utils/classification.sh \

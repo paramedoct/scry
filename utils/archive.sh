@@ -85,8 +85,7 @@ archive_add() {
     fi
     return "$status"
   done
-  sequence_id=$(db_value \
-    "SELECT sequence_id FROM images WHERE id = ${image_ids[0]};")
+  sequence_id=$(query_image_sequence "${image_ids[0]}")
   rm -rf "$work_dir"
   printf '%s\n' "$sequence_id"
 }

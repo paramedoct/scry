@@ -64,15 +64,7 @@ display_read_key() {
 display_info() {
   local id
   id=$1
-  db_value "
-SELECT sequences.id || char(9) || artists.name || char(9) || cats.name ||
-       char(9) || COALESCE(topics.name, '-')
-FROM sequences
-JOIN artists ON artists.id = sequences.artist_id
-JOIN cats ON cats.id = sequences.cat_id
-LEFT JOIN topics ON topics.id = sequences.topic_id
-WHERE sequences.id = $id;
-"
+  query_sequence_info "$id"
 }
 
 display_image_rows() {
@@ -185,11 +177,7 @@ display_browser() {
     target=${!position}
     sequence_require "$target" >/dev/null
     image_ids=()
-    ids=$(db_value "
-SELECT images.id FROM images
-WHERE images.sequence_id = $target
-ORDER BY images.position;
-")
+    ids=$(query_sequence_image_ids "$target")
     while IFS= read -r id; do
       [ -n "$id" ] || continue
       image_ids+=("$id")
@@ -275,7 +263,7 @@ ORDER BY images.position;
       x | X)
         if action_sequence_image_remove "$target" "$id" \
           "$((image_selected + 1))"; then
-          if [ -z "$(db_value "SELECT id FROM sequences WHERE id = $target;")" ]; then
+          if [ -z "$(query_sequence_exists "$target")" ]; then
             DISPLAY_SELECTED=$selected
             return 10
           fi

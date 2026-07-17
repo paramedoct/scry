@@ -4,9 +4,11 @@ search_targets() {
   local cat
   local topic
   local rest
-  local where
+  artist=
+  cat=
+  topic=
   if [ "$#" -eq 0 ]; then
-    where='1 = 1'
+    :
   else
     location=$1
     case "$location" in
@@ -20,44 +22,28 @@ search_targets() {
         cat=${rest%%:*}
         topic=${rest#*:}
         topic_validate "$topic" || return 1
-        where="topics.name = $(db_quote "$topic")"
         if [ -n "$artist" ]; then
           image_validate_artist "$artist" || return 1
-          where="$where AND artists.name = $(db_quote "$artist")"
         fi
         if [ -n "$cat" ]; then
           cat_validate "$cat" || return 1
-          where="$where AND cats.name = $(db_quote "$cat")"
         fi
         ;;
       :*)
         cat=${location#:}
         cat_validate "$cat" || return 1
-        where="cats.name = $(db_quote "$cat")"
         ;;
       *:*)
         artist=${location%%:*}
         cat=${location#*:}
         image_validate_artist "$artist" || return 1
         cat_validate "$cat" || return 1
-        where="artists.name = $(db_quote "$artist")
-  AND cats.name = $(db_quote "$cat")"
         ;;
       *)
         image_validate_artist "$location" || return 1
-        where="artists.name = $(db_quote "$location")"
+        artist=$location
         ;;
     esac
   fi
-  db_value "
-SELECT sequences.id
-FROM sequences
-JOIN images ON images.sequence_id = sequences.id
-JOIN artists ON artists.id = sequences.artist_id
-JOIN cats ON cats.id = sequences.cat_id
-LEFT JOIN topics ON topics.id = sequences.topic_id
-WHERE $where
-GROUP BY sequences.id
-ORDER BY min(images.id), sequences.id;
-"
+  query_search_targets "$artist" "$cat" "$topic"
 }

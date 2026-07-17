@@ -11,6 +11,7 @@ usage() {
 source "$ROOT_DIR/utils/source.sh"
 source_modules \
   utils/db.sh \
+  utils/query.sh \
   utils/environment.sh
 
 main() {
@@ -26,9 +27,7 @@ main() {
     iterm | kitty | sixels | symbols) ;;
     *) usage ;;
   esac
-  db_run "
-UPDATE settings SET display_format = $(db_quote "$format") WHERE id = 1;
-"
+  query_display_format_update "$format"
   printf '%s\n' "$format"
 }
 
