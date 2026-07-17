@@ -1,23 +1,3 @@
-image_validate_artist() {
-  local artist
-  artist=$1
-  case "$artist" in
-    '' | '.' | '..' | */*)
-      echo "invalid artist: $artist" >&2
-      return 1
-      ;;
-  esac
-}
-
-image_validate_id() {
-  case "${1:-}" in
-    '' | *[!0-9]*)
-      echo "invalid image id: ${1:-}" >&2
-      return 1
-      ;;
-  esac
-}
-
 image_sha256() {
   if command -v sha256sum >/dev/null 2>&1; then
     sha256sum "$1" | awk '{ print $1 }'
@@ -42,16 +22,10 @@ image_file_delete() {
   rmdir "$SCRY_IMAGES_DIR/$artist" 2>/dev/null || true
 }
 
-image_record() {
-  local id
-  id=$1
-  image_validate_id "$id"
-  query_image_record "$id"
-}
-
 image_require() {
   local record
-  record=$(image_record "$1")
+  classification_validate_id image "${1:-}"
+  record=$(query_image_record "$1")
   if [ -z "$record" ]; then
     echo "image file not found: $1" >&2
     return 1
@@ -85,9 +59,9 @@ image_add() {
       return 1
       ;;
   esac
-  image_validate_artist "$artist"
-  classification_validate_cat "$cat"
-  if [ -n "$topic" ]; then classification_validate_topic "$topic"; fi
+  classification_validate_name artist "$artist"
+  classification_validate_name cat "$cat"
+  if [ -n "$topic" ]; then classification_validate_name topic "$topic"; fi
   if [ ! -f "$file" ] || [ ! -r "$file" ]; then
     echo "image is not a readable file: $file" >&2
     return 1

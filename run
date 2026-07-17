@@ -22,12 +22,10 @@ source_modules \
 main() {
   local targets
   local arg
-  local location
-  local location_set
   local status
+  local -a location_args
   local -a result_targets
-  location=
-  location_set=0
+  location_args=()
   result_targets=()
   case "$#" in
     0) ;;
@@ -35,13 +33,11 @@ main() {
       case "$1" in
         -*) usage ;;
       esac
-      location=$1
-      location_set=1
+      location_args=("$1")
       ;;
     2)
       [ "$1" = -- ] || usage
-      location=$2
-      location_set=1
+      location_args=("$2")
       ;;
     *) usage ;;
   esac
@@ -53,14 +49,9 @@ main() {
   DISPLAY_SELECTED=0
   while :; do
     result_targets=()
-    if [ "$location_set" -eq 1 ]; then
-      targets=$(search_targets "$location")
-    else
-      targets=$(search_targets)
-    fi
+    targets=$(search_targets "${location_args[@]}")
     while IFS= read -r arg; do
-      [ -n "$arg" ] || continue
-      result_targets+=("$arg")
+      [ -n "$arg" ] && result_targets+=("$arg")
     done <<<"$targets"
     if [ ! -t 0 ] || [ ! -t 1 ]; then
       if [ "${#result_targets[@]}" -gt 0 ]; then

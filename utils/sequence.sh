@@ -1,12 +1,3 @@
-sequence_validate_id() {
-  case "${1:-}" in
-    '' | *[!0-9]*)
-      echo "invalid sequence id: ${1:-}" >&2
-      return 1
-      ;;
-  esac
-}
-
 sequence_remove() {
   local id
   local records
@@ -25,7 +16,7 @@ sequence_remove() {
 sequence_require() {
   local id
   id=$1
-  sequence_validate_id "$id"
+  classification_validate_id sequence "$id"
   if [ -z "$(query_sequence_exists "$id")" ]; then
     echo "sequence not found: $id" >&2
     return 1

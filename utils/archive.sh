@@ -1,17 +1,3 @@
-archive_require_unzip() {
-  if ! command -v unzip >/dev/null 2>&1; then
-    echo "unzip command not found" >&2
-    return 1
-  fi
-}
-
-archive_remove_images() {
-  local image_id
-  for image_id in "$@"; do
-    image_remove "$image_id"
-  done
-}
-
 archive_add() {
   local artist
   local cat
@@ -32,7 +18,10 @@ archive_add() {
   cat=$2
   topic=$3
   archive=$4
-  archive_require_unzip
+  if ! command -v unzip >/dev/null 2>&1; then
+    echo "unzip command not found" >&2
+    return 1
+  fi
   work_dir=$(mktemp -d "$SCRY_STATE_DIR/.archive.XXXXXX")
   entries_file=$work_dir/entries
   image_ids=()
@@ -77,7 +66,9 @@ archive_add() {
     else
       status=$?
     fi
-    archive_remove_images "${image_ids[@]}"
+    for image_id in "${image_ids[@]}"; do
+      image_remove "$image_id"
+    done
     rm -rf "$work_dir"
     if [ "$status" -eq 2 ]; then
       echo "sequence skipped: zip contains a duplicate image" >&2

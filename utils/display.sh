@@ -10,24 +10,6 @@ display_action_confirm() {
   esac
 }
 
-display_action_remove() {
-  local sequence_id
-  sequence_id=$1
-  display_action_confirm "remove sequence $sequence_id" || return 1
-  sequence_remove "$sequence_id"
-}
-
-display_action_sequence_image_remove() {
-  local sequence_id
-  local image_id
-  local position
-  sequence_id=$1
-  image_id=$2
-  position=$3
-  display_action_confirm "remove image $position from sequence $sequence_id" || return 1
-  sequence_image_remove "$sequence_id" "$image_id"
-}
-
 display_clear_history() {
   printf '\033[H\033[2J\033[3J'
 }
@@ -59,12 +41,6 @@ display_read_key() {
     fi
   fi
   printf '%s' "$key"
-}
-
-display_info() {
-  local id
-  id=$1
-  query_sequence_info "$id"
 }
 
 display_image_rows() {
@@ -193,7 +169,7 @@ display_browser() {
     id=${image_ids[$image_selected]}
     record=$(image_require "$id")
     IFS=$'\t' read -r _ sha artist mime _ <<<"$record"
-    info=$(display_info "$target")
+    info=$(query_sequence_info "$target")
     IFS=$'\t' read -r _ artist cat topic <<<"$info"
     path=$(image_path "$artist" "$sha")
     if [ ! -r "$path" ]; then
@@ -261,8 +237,9 @@ display_browser() {
         image_selected=$((image_selected + 1))
         ;;
       x | X)
-        if display_action_sequence_image_remove "$target" "$id" \
-          "$((image_selected + 1))"; then
+        if display_action_confirm \
+          "remove image $((image_selected + 1)) from sequence $target" &&
+          sequence_image_remove "$target" "$id"; then
           if [ -z "$(query_sequence_exists "$target")" ]; then
             DISPLAY_SELECTED=$selected
             return 10
@@ -270,7 +247,8 @@ display_browser() {
         fi
         ;;
       d | D)
-        if display_action_remove "$target"; then
+        if display_action_confirm "remove sequence $target" &&
+          sequence_remove "$target"; then
           DISPLAY_SELECTED=$selected
           return 10
         fi

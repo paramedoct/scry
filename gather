@@ -64,7 +64,7 @@ main() {
   shift
   environment_prepare
   IFS=$'\t' read -r artist cat topic \
-    < <(classification_parse_add_location "$location")
+    < <(classification_parse_location "$location" add)
   for input in "$@"; do
     if gather_add_file "$artist" "$cat" "$topic" "$input"; then
       continue
