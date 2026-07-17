@@ -43,16 +43,6 @@ display_read_key() {
   printf '%s' "$key"
 }
 
-display_image_rows() {
-  local path
-  local view_size
-  path=$1
-  view_size=$2
-  chafa --probe off --format symbols --colors none --symbols ascii \
-    --animate off --scale max --align top,left --size "$view_size" --work 1 \
-    "$path" | awk 'END { print NR }'
-}
-
 display_image_start() {
   local path
   local rows
@@ -100,20 +90,6 @@ display_image_stop() {
   [ "$status" -eq 0 ] || [ "$status" -eq 143 ]
 }
 
-display_metadata() {
-  local row
-  local artist
-  local cat
-  local topic
-  row=$1
-  artist=$2
-  cat=$3
-  topic=$4
-  printf '\033[%s;1H' "$row"
-  printf '%-6s %s\n%-6s %s\n%-6s %s\n' \
-    artist "$artist" cat "$cat" topic "$topic"
-}
-
 display_browser() {
   local total
   local selected
@@ -124,9 +100,8 @@ display_browser() {
   local cols
   local target
   local id
-  local ids
   local record
-  local info
+  local records
   local sha
   local artist
   local cat
@@ -137,8 +112,10 @@ display_browser() {
   local search_pager
   local image_pager
   local search_col
+  local search_delta
+  local image_delta
   local position
-  local -a image_ids
+  local -a images
   total=$#
   if ((total == 0)); then
     echo "no images found"
@@ -151,15 +128,22 @@ display_browser() {
   while :; do
     position=$((selected + 1))
     target=${!position}
-    sequence_require "$target" >/dev/null
-    image_ids=()
-    ids=$(db_value "SELECT id FROM images
-WHERE sequence_id = $target ORDER BY position;")
-    while IFS= read -r id; do
-      [ -n "$id" ] || continue
-      image_ids+=("$id")
-    done <<<"$ids"
-    image_total=${#image_ids[@]}
+    images=()
+    records=$(db_value "
+SELECT images.id || char(9) || images.sha256 || char(9) || artists.name ||
+       char(9) || images.mime_type || char(9) || cats.name || char(9) ||
+       COALESCE(topics.name, '-')
+FROM images
+JOIN sequences ON sequences.id = images.sequence_id
+JOIN artists ON artists.id = sequences.artist_id
+JOIN cats ON cats.id = sequences.cat_id
+LEFT JOIN topics ON topics.id = sequences.topic_id
+WHERE sequences.id = $target ORDER BY images.position;
+")
+    while IFS= read -r record; do
+      [ -n "$record" ] && images+=("$record")
+    done <<<"$records"
+    image_total=${#images[@]}
     [ "$image_total" -gt 0 ] || {
       echo "sequence is empty: $target" >&2
       return 1
@@ -167,19 +151,8 @@ WHERE sequence_id = $target ORDER BY position;")
     if ((image_selected >= image_total)); then
       image_selected=$((image_total - 1))
     fi
-    id=${image_ids[$image_selected]}
-    record=$(image_require "$id")
-    IFS=$'\t' read -r _ sha artist mime _ <<<"$record"
-    info=$(db_value "
-SELECT sequences.id || char(9) || artists.name || char(9) || cats.name ||
-       char(9) || COALESCE(topics.name, '-')
-FROM sequences
-JOIN artists ON artists.id = sequences.artist_id
-JOIN cats ON cats.id = sequences.cat_id
-LEFT JOIN topics ON topics.id = sequences.topic_id
-WHERE sequences.id = $target;
-")
-    IFS=$'\t' read -r _ artist cat topic <<<"$info"
+    record=${images[$image_selected]}
+    IFS=$'\t' read -r id sha artist mime cat topic <<<"$record"
     path=$(image_path "$artist" "$sha")
     if [ ! -r "$path" ]; then
       echo "stored image not found: $path" >&2
@@ -190,9 +163,14 @@ WHERE sequences.id = $target;
     read -r rows cols < <(stty size </dev/tty 2>/dev/null || printf '24 80\n')
     if ((rows < 10)); then rows=10; fi
     if ((cols < 20)); then cols=20; fi
-    image_rows=$(display_image_rows "$path" "${cols}x$((rows - 7))")
+    image_rows=$(chafa --probe off --format symbols --colors none \
+      --symbols ascii --animate off --scale max --align top,left \
+      --size "${cols}x$((rows - 7))" --work 1 "$path" |
+      awk 'END { print NR }')
     display_clear_history
-    display_metadata "$((image_rows + 1))" "$artist" "$cat" "$topic"
+    printf '\033[%s;1H' "$((image_rows + 1))"
+    printf '%-6s %s\n%-6s %s\n%-6s %s\n' \
+      artist "$artist" cat "$cat" topic "$topic"
     search_pager=$(printf '[%s/%s]' "$((selected + 1))" "$total")
     search_col=$((cols - ${#search_pager} + 1))
     printf '\033[%s;1H\033[2K' "$rows"
@@ -208,47 +186,40 @@ WHERE sequences.id = $target;
     display_image_start "$path" "$rows" "$cols" "$mime"
     while :; do
       key=$(display_read_key)
+      search_delta=0
+      image_delta=0
       case "$key" in
-        $'\033[A')
-          ((selected > 0)) && break
-          ;;
-        $'\033[B')
-          ((selected + 1 < total)) && break
-          ;;
-        $'\033[D')
-          ((image_selected > 0)) && break
-          ;;
-        $'\033[C')
-          ((image_selected + 1 < image_total)) && break
-          ;;
+        $'\033[A') search_delta=-1 ;;
+        $'\033[B') search_delta=1 ;;
+        $'\033[D') image_delta=-1 ;;
+        $'\033[C') image_delta=1 ;;
         x | X) break ;;
         d | D | b | B | q | Q | $'\033') break ;;
+        *) continue ;;
       esac
+      if ((selected + search_delta >= 0 &&
+        selected + search_delta < total &&
+        image_selected + image_delta >= 0 &&
+        image_selected + image_delta < image_total)); then
+        break
+      fi
     done
     if ! display_image_stop; then
       printf '\033[%s;1H\n' "$rows"
       return 1
     fi
     printf '\033[%s;1H\033[2K' "$rows"
+    selected=$((selected + search_delta))
+    if ((search_delta == 0)); then
+      image_selected=$((image_selected + image_delta))
+    else
+      image_selected=0
+    fi
     case "$key" in
-      $'\033[A')
-        selected=$((selected - 1))
-        image_selected=0
-        ;;
-      $'\033[B')
-        selected=$((selected + 1))
-        image_selected=0
-        ;;
-      $'\033[D')
-        image_selected=$((image_selected - 1))
-        ;;
-      $'\033[C')
-        image_selected=$((image_selected + 1))
-        ;;
       x | X)
         if display_action_confirm \
           "remove image $((image_selected + 1)) from sequence $target" &&
-          sequence_image_remove "$target" "$id"; then
+          image_remove "$id" "$target"; then
           if [ -z "$(db_value \
             "SELECT id FROM sequences WHERE id = $target;")" ]; then
             DISPLAY_SELECTED=$selected

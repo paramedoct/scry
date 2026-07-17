@@ -42,19 +42,3 @@ sequence_require() {
   fi
   printf '%s\n' "$id"
 }
-
-sequence_image_remove() {
-  local sequence_id
-  local image_id
-  local current_sequence_id
-  sequence_id=$1
-  image_id=$2
-  sequence_require "$sequence_id" >/dev/null
-  current_sequence_id=$(db_value \
-    "SELECT sequence_id FROM images WHERE id = $image_id;")
-  if [ "$current_sequence_id" != "$sequence_id" ]; then
-    echo "image is not in sequence: $image_id" >&2
-    return 1
-  fi
-  image_remove "$image_id"
-}

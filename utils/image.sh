@@ -155,6 +155,7 @@ image_add() {
 
 image_remove() {
   local id
+  local expected_sequence_id
   local record
   local sha
   local artist
@@ -162,8 +163,14 @@ image_remove() {
   local position
   local count
   id=$1
+  expected_sequence_id=${2:-}
   record=$(image_require "$id")
   IFS=$'\t' read -r _ sha artist _ _ sequence_id position <<<"$record"
+  if [ -n "$expected_sequence_id" ] &&
+    [ "$sequence_id" != "$expected_sequence_id" ]; then
+    echo "image is not in sequence: $id" >&2
+    return 1
+  fi
   count=$(db_value \
     "SELECT count(*) FROM images WHERE sequence_id = $sequence_id;")
   if [ "$count" -eq 1 ]; then
