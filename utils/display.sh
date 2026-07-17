@@ -106,11 +106,11 @@ display_image_start() {
     ' TERM
     display_cursor_position 1 1
     if [ "$mime" = image/gif ]; then
-      chafa --probe off --format "$ARTS_DISPLAY_FORMAT" --animate on \
+      chafa --probe off --format "$SCRY_DISPLAY_FORMAT" --animate on \
         --duration infinite --scale max --align top,left \
         --size "$view_size" "$path" &
     else
-      chafa --probe off --format "$ARTS_DISPLAY_FORMAT" --animate off \
+      chafa --probe off --format "$SCRY_DISPLAY_FORMAT" --animate off \
         --scale max --align top,left --size "$view_size" "$path" &
     fi
     image_pid=$!

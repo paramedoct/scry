@@ -33,7 +33,7 @@ archive_add() {
   topic=$3
   archive=$4
   archive_require_unzip
-  work_dir=$(mktemp -d "$ARTS_STATE_DIR/.archive.XXXXXX")
+  work_dir=$(mktemp -d "$SCRY_STATE_DIR/.archive.XXXXXX")
   entries_file=$work_dir/entries
   image_ids=()
   files=()

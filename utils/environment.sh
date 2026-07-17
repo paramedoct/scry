@@ -1,11 +1,11 @@
 environment_prepare() {
-  ARTS_HOME=${ARTS_HOME:-"$HOME/.config/arts"}
-  ARTS_IMAGES_DIR=$ARTS_HOME/images
-  ARTS_STATE_DIR=$ARTS_HOME/state
-  ARTS_DB_FILE=$ARTS_STATE_DIR/arts.db
-  mkdir -p "$ARTS_IMAGES_DIR" "$ARTS_STATE_DIR"
+  SCRY_HOME=${SCRY_HOME:-"$HOME/.config/scry"}
+  SCRY_IMAGES_DIR=$SCRY_HOME/images
+  SCRY_STATE_DIR=$SCRY_HOME/state
+  SCRY_DB_FILE=$SCRY_STATE_DIR/scry.db
+  mkdir -p "$SCRY_IMAGES_DIR" "$SCRY_STATE_DIR"
   db_init
-  ARTS_DISPLAY_FORMAT=$(db_value "
+  SCRY_DISPLAY_FORMAT=$(db_value "
 SELECT display_format FROM settings WHERE id = 1;
 ")
 }

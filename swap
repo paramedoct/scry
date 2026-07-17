@@ -18,7 +18,7 @@ main() {
   [ "$#" -le 1 ] || usage
   environment_prepare
   if [ "$#" -eq 0 ]; then
-    printf '%s\n' "$ARTS_DISPLAY_FORMAT"
+    printf '%s\n' "$SCRY_DISPLAY_FORMAT"
     return 0
   fi
   format=$1

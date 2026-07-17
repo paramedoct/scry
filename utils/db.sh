@@ -6,12 +6,12 @@ db_quote() {
 }
 
 db_run() {
-  sqlite3 -batch -bail -cmd 'PRAGMA foreign_keys = ON;' "$ARTS_DB_FILE" "$1"
+  sqlite3 -batch -bail -cmd 'PRAGMA foreign_keys = ON;' "$SCRY_DB_FILE" "$1"
 }
 
 db_value() {
   sqlite3 -batch -bail -noheader -cmd 'PRAGMA foreign_keys = ON;' \
-    "$ARTS_DB_FILE" "$1"
+    "$SCRY_DB_FILE" "$1"
 }
 
 db_init() {

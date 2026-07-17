@@ -30,7 +30,7 @@ image_sha256() {
 }
 
 image_path() {
-  printf '%s/%s/%s\n' "$ARTS_IMAGES_DIR" "$1" "$2"
+  printf '%s/%s/%s\n' "$SCRY_IMAGES_DIR" "$1" "$2"
 }
 
 image_file_delete() {
@@ -39,7 +39,7 @@ image_file_delete() {
   artist=$1
   sha=$2
   rm -f -- "$(image_path "$artist" "$sha")"
-  rmdir "$ARTS_IMAGES_DIR/$artist" 2>/dev/null || true
+  rmdir "$SCRY_IMAGES_DIR/$artist" 2>/dev/null || true
 }
 
 image_record() {
@@ -135,7 +135,7 @@ SELECT sequence_id FROM images WHERE sha256 = $(db_quote "$sha");
 VALUES ($topic_sql);"
   fi
   mime_sql=$(db_quote "$mime")
-  target_dir=$ARTS_IMAGES_DIR/$artist
+  target_dir=$SCRY_IMAGES_DIR/$artist
   target=$(image_path "$artist" "$sha")
   mkdir -p "$target_dir"
   temporary=$(mktemp "$target_dir/.${sha}.XXXXXX")
