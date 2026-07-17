@@ -94,30 +94,30 @@ image_require() {
 
 image_add() {
   local artist
-  local album
-  local character
+  local cat
+  local topic
   local file
   local sha
   local existing_id
   local mime
   local size
   local artist_sql
-  local album_sql
-  local character_sql
-  local character_id_sql
-  local character_statement
+  local cat_sql
+  local topic_sql
+  local topic_id_sql
+  local topic_statement
   local mime_sql
   local target_dir
   local target
   local temporary
   local id
   artist=$1
-  album=$2
-  character=$3
+  cat=$2
+  topic=$3
   file=$4
   image_validate_artist "$artist"
-  album_validate "$album"
-  if [ -n "$character" ]; then character_validate "$character"; fi
+  cat_validate "$cat"
+  if [ -n "$topic" ]; then topic_validate "$topic"; fi
   if [ ! -f "$file" ] || [ ! -r "$file" ]; then
     echo "image is not a readable file: $file" >&2
     return 1
@@ -140,14 +140,14 @@ SELECT object_id FROM images WHERE sha256 = $(db_quote "$sha");
   esac
   size=$(wc -c <"$file" | tr -d '[:space:]')
   artist_sql=$(db_quote "$artist")
-  album_sql=$(db_quote "$album")
-  character_sql=$(db_quote "$character")
-  character_id_sql=NULL
-  character_statement=
-  if [ -n "$character" ]; then
-    character_id_sql="(SELECT id FROM topics WHERE name = $character_sql)"
-    character_statement="INSERT OR IGNORE INTO topics (name)
-VALUES ($character_sql);"
+  cat_sql=$(db_quote "$cat")
+  topic_sql=$(db_quote "$topic")
+  topic_id_sql=NULL
+  topic_statement=
+  if [ -n "$topic" ]; then
+    topic_id_sql="(SELECT id FROM topics WHERE name = $topic_sql)"
+    topic_statement="INSERT OR IGNORE INTO topics (name)
+VALUES ($topic_sql);"
   fi
   mime_sql=$(db_quote "$mime")
   target_dir=$ARTS_IMAGES_DIR/$artist
@@ -168,13 +168,13 @@ PRAGMA foreign_keys = ON;
 BEGIN IMMEDIATE;
 INSERT OR IGNORE INTO artists (name) VALUES ($artist_sql);
 INSERT OR IGNORE INTO cats (artist_id, name)
-SELECT id, $album_sql FROM artists WHERE name = $artist_sql;
-$character_statement
+SELECT id, $cat_sql FROM artists WHERE name = $artist_sql;
+$topic_statement
 INSERT INTO objects (type, artist_id, cat_id, topic_id)
-SELECT 'image', artists.id, cats.id, $character_id_sql
+SELECT 'image', artists.id, cats.id, $topic_id_sql
 FROM artists
 JOIN cats ON cats.artist_id = artists.id
-WHERE artists.name = $artist_sql AND cats.name = $album_sql;
+WHERE artists.name = $artist_sql AND cats.name = $cat_sql;
 INSERT INTO images (object_id, position, sha256, mime_type, byte_size)
 SELECT (SELECT max(id) FROM objects), 1, $(db_quote "$sha"), $mime_sql, $size
 FROM artists WHERE name = $artist_sql;

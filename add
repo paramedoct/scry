@@ -14,20 +14,20 @@ source_modules \
   utils/profile.sh \
   utils/object.sh \
   utils/image.sh \
-  utils/album.sh \
+  utils/classification.sh \
   utils/sequence.sh \
   utils/archive.sh
 
 add_file() {
   local artist
-  local album
-  local character
+  local cat
+  local topic
   local input
   local mime
   local status
   artist=$1
-  album=$2
-  character=$3
+  cat=$2
+  topic=$3
   input=$4
   if [ ! -f "$input" ] || [ ! -r "$input" ]; then
     echo "input is not a readable file: $input" >&2
@@ -36,10 +36,10 @@ add_file() {
   mime=$(file -b --mime-type -- "$input")
   case "$mime" in
     application/zip | application/x-zip | application/x-zip-compressed)
-      archive_add "$artist" "$album" "$character" "$input"
+      archive_add "$artist" "$cat" "$topic" "$input"
       ;;
     *)
-      if image_add "$artist" "$album" "$character" "$input"; then
+      if image_add "$artist" "$cat" "$topic" "$input"; then
         return 0
       else
         status=$?
@@ -55,18 +55,18 @@ add_file() {
 main() {
   local location
   local artist
-  local album
-  local character
+  local cat
+  local topic
   local input
   local status
   [ "$#" -ge 2 ] || usage
   location=$1
   shift
   profile_prepare
-  IFS=$'\t' read -r artist album character \
-    < <(album_parse_add_location "$location")
+  IFS=$'\t' read -r artist cat topic \
+    < <(classification_parse_add_location "$location")
   for input in "$@"; do
-    if add_file "$artist" "$album" "$character" "$input"; then
+    if add_file "$artist" "$cat" "$topic" "$input"; then
       continue
     else
       status=$?

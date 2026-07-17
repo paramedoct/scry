@@ -14,8 +14,8 @@ archive_remove_images() {
 
 archive_add() {
   local artist
-  local album
-  local character
+  local cat
+  local topic
   local archive
   local work_dir
   local entries_file
@@ -29,8 +29,8 @@ archive_add() {
   local -a image_ids
   local -a files
   artist=$1
-  album=$2
-  character=$3
+  cat=$2
+  topic=$3
   archive=$4
   archive_require_unzip
   work_dir=$(mktemp -d "$ARTS_STATE_DIR/.archive.XXXXXX")
@@ -71,7 +71,7 @@ archive_add() {
     return 1
   fi
   for file in "${files[@]}"; do
-    if image_id=$(image_add "$artist" "$album" "$character" "$file"); then
+    if image_id=$(image_add "$artist" "$cat" "$topic" "$file"); then
       image_ids+=("$image_id")
       continue
     else

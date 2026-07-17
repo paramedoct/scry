@@ -140,15 +140,15 @@ display_image_stop() {
 display_metadata() {
   local row
   local artist
-  local album
-  local character
+  local cat
+  local topic
   row=$1
   artist=$2
-  album=$3
-  character=$4
+  cat=$3
+  topic=$4
   printf '\033[%s;1H' "$row"
   printf '%-6s %s\n%-6s %s\n%-6s %s\n' \
-    artist "$artist" cat "$album" topic "$character"
+    artist "$artist" cat "$cat" topic "$topic"
 }
 
 display_browser() {
@@ -167,8 +167,8 @@ display_browser() {
   local info
   local sha
   local artist
-  local album
-  local character
+  local cat
+  local topic
   local mime
   local key
   local path
@@ -212,7 +212,7 @@ ORDER BY images.position;
     record=$(image_file_require "$id")
     IFS=$'\t' read -r _ sha artist mime _ <<<"$record"
     info=$(display_info "$target")
-    IFS=$'\t' read -r _ artist album character <<<"$info"
+    IFS=$'\t' read -r _ artist cat topic <<<"$info"
     path=$(image_path "$artist" "$sha")
     if [ ! -r "$path" ]; then
       echo "stored image not found: $path" >&2
@@ -225,7 +225,7 @@ ORDER BY images.position;
     if ((cols < 20)); then cols=20; fi
     image_rows=$(display_image_rows "$path" "${cols}x$((rows - 7))")
     display_clear_history
-    display_metadata "$((image_rows + 1))" "$artist" "$album" "$character"
+    display_metadata "$((image_rows + 1))" "$artist" "$cat" "$topic"
     search_pager=$(printf '[%s/%s]' "$((selected + 1))" "$total")
     search_col=$((cols - ${#search_pager} + 1))
     printf '\033[%s;1H\033[2K' "$rows"

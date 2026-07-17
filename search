@@ -14,7 +14,7 @@ source_modules \
   utils/profile.sh \
   utils/object.sh \
   utils/image.sh \
-  utils/album.sh \
+  utils/classification.sh \
   utils/sequence.sh \
   utils/search.sh \
   utils/display.sh

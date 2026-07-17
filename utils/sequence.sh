@@ -12,18 +12,18 @@ sequence_add() {
   local position
   local image_id
   local artist_id
-  local album_id
-  local character_id
+  local cat_id
+  local topic_id
   local current_artist_id
-  local current_album_id
-  local current_character_id
+  local current_cat_id
+  local current_topic_id
   [ "$#" -ge 1 ] || {
     echo "sequence requires at least one image" >&2
     return 1
   }
   artist_id=$(db_value "SELECT artist_id FROM objects WHERE id = $1;")
-  album_id=$(db_value "SELECT cat_id FROM objects WHERE id = $1;")
-  character_id=$(db_value \
+  cat_id=$(db_value "SELECT cat_id FROM objects WHERE id = $1;")
+  topic_id=$(db_value \
     "SELECT COALESCE(topic_id, '') FROM objects WHERE id = $1;")
   [ -n "$artist_id" ] || {
     echo "image not found: $1" >&2
@@ -33,25 +33,25 @@ sequence_add() {
 PRAGMA foreign_keys = ON;
 BEGIN IMMEDIATE;
 INSERT INTO objects (type, artist_id, cat_id, topic_id)
-VALUES ('sequence', $artist_id, $album_id, ${character_id:-NULL});"
+VALUES ('sequence', $artist_id, $cat_id, ${topic_id:-NULL});"
   position=1
   for image_id in "$@"; do
     image_require "$image_id" >/dev/null
     current_artist_id=$(db_value \
       "SELECT artist_id FROM objects WHERE id = $image_id;")
-    current_album_id=$(db_value \
+    current_cat_id=$(db_value \
       "SELECT cat_id FROM objects WHERE id = $image_id;")
-    current_character_id=$(db_value \
+    current_topic_id=$(db_value \
       "SELECT COALESCE(topic_id, '') FROM objects WHERE id = $image_id;")
     if [ "$current_artist_id" != "$artist_id" ]; then
       echo "sequence images must have the same artist" >&2
       return 1
     fi
-    if [ "$current_album_id" != "$album_id" ]; then
+    if [ "$current_cat_id" != "$cat_id" ]; then
       echo "sequence images must have the same cat" >&2
       return 1
     fi
-    if [ "$current_character_id" != "$character_id" ]; then
+    if [ "$current_topic_id" != "$topic_id" ]; then
       echo "sequence images must have the same topic" >&2
       return 1
     fi

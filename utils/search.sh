@@ -1,8 +1,8 @@
 search_targets() {
   local location
   local artist
-  local album
-  local character
+  local cat
+  local topic
   local rest
   local where
   if [ "$#" -eq 0 ]; then
@@ -17,31 +17,31 @@ search_targets() {
       *:*:*)
         artist=${location%%:*}
         rest=${location#*:}
-        album=${rest%%:*}
-        character=${rest#*:}
-        character_validate "$character" || return 1
-        where="topics.name = $(db_quote "$character")"
+        cat=${rest%%:*}
+        topic=${rest#*:}
+        topic_validate "$topic" || return 1
+        where="topics.name = $(db_quote "$topic")"
         if [ -n "$artist" ]; then
           image_validate_artist "$artist" || return 1
           where="$where AND artists.name = $(db_quote "$artist")"
         fi
-        if [ -n "$album" ]; then
-          album_validate "$album" || return 1
-          where="$where AND cats.name = $(db_quote "$album")"
+        if [ -n "$cat" ]; then
+          cat_validate "$cat" || return 1
+          where="$where AND cats.name = $(db_quote "$cat")"
         fi
         ;;
       :*)
-        album=${location#:}
-        album_validate "$album" || return 1
-        where="cats.name = $(db_quote "$album")"
+        cat=${location#:}
+        cat_validate "$cat" || return 1
+        where="cats.name = $(db_quote "$cat")"
         ;;
       *:*)
         artist=${location%%:*}
-        album=${location#*:}
+        cat=${location#*:}
         image_validate_artist "$artist" || return 1
-        album_validate "$album" || return 1
+        cat_validate "$cat" || return 1
         where="artists.name = $(db_quote "$artist")
-  AND cats.name = $(db_quote "$album")"
+  AND cats.name = $(db_quote "$cat")"
         ;;
       *)
         image_validate_artist "$location" || return 1
