@@ -160,32 +160,15 @@ image_remove() {
   local sha
   local artist
   local sequence_id
-  local position
-  local count
   id=$1
   expected_sequence_id=${2:-}
   record=$(image_require "$id")
-  IFS=$'\t' read -r _ sha artist _ _ sequence_id position <<<"$record"
+  IFS=$'\t' read -r _ sha artist _ _ sequence_id _ <<<"$record"
   if [ -n "$expected_sequence_id" ] &&
     [ "$sequence_id" != "$expected_sequence_id" ]; then
     echo "image is not in sequence: $id" >&2
     return 1
   fi
-  count=$(db_value \
-    "SELECT count(*) FROM images WHERE sequence_id = $sequence_id;")
-  if [ "$count" -eq 1 ]; then
-    sequence_remove "$sequence_id"
-    return 0
-  else
-    db_run "
-BEGIN IMMEDIATE;
-DELETE FROM images WHERE id = $id;
-UPDATE images SET position = position + $count
-WHERE sequence_id = $sequence_id AND position > $position;
-UPDATE images SET position = position - $count - 1
-WHERE sequence_id = $sequence_id AND position > $count;
-COMMIT;
-"
-  fi
+  db_run "DELETE FROM images WHERE id = $id;"
   image_file_delete "$artist" "$sha"
 }

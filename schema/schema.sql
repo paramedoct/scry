@@ -47,4 +47,28 @@ CREATE UNIQUE INDEX IF NOT EXISTS sequences_context_idx
 ON sequences(artist_id, cat_id, IFNULL(topic_id, 0));
 CREATE INDEX IF NOT EXISTS images_sequence_id_idx ON images(sequence_id);
 
+CREATE TRIGGER IF NOT EXISTS images_remove_empty_sequence
+AFTER DELETE ON images
+WHEN EXISTS (SELECT 1 FROM sequences WHERE id = OLD.sequence_id)
+  AND NOT EXISTS (
+    SELECT 1 FROM images WHERE sequence_id = OLD.sequence_id
+  )
+BEGIN
+  DELETE FROM sequences WHERE id = OLD.sequence_id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS sequences_remove_empty_classification
+AFTER DELETE ON sequences
+BEGIN
+  DELETE FROM topics WHERE NOT EXISTS (
+    SELECT 1 FROM sequences WHERE sequences.topic_id = topics.id
+  );
+  DELETE FROM cats WHERE NOT EXISTS (
+    SELECT 1 FROM sequences WHERE sequences.cat_id = cats.id
+  );
+  DELETE FROM artists WHERE NOT EXISTS (
+    SELECT 1 FROM sequences WHERE sequences.artist_id = artists.id
+  );
+END;
+
 INSERT OR IGNORE INTO settings (id, display_format) VALUES (1, 'symbols');

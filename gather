@@ -14,7 +14,6 @@ source_modules \
   utils/environment.sh \
   utils/image.sh \
   utils/classification.sh \
-  utils/sequence.sh \
   utils/archive.sh
 
 gather_add_file() {
