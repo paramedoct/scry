@@ -47,46 +47,22 @@ image_record() {
   id=$1
   image_validate_id "$id"
   db_value "
-SELECT objects.id || char(9) || images.sha256 || char(9) ||
-       artists.name || char(9) || images.mime_type || char(9) || images.byte_size
-FROM objects
-JOIN images ON images.object_id = objects.id
-JOIN artists ON artists.id = objects.artist_id
-WHERE objects.id = $id AND objects.type = 'image' AND images.position = 1;
-"
-}
-
-image_file_record() {
-  local id
-  id=$1
-  image_validate_id "$id"
-  db_value "
 SELECT images.id || char(9) || images.sha256 || char(9) ||
        artists.name || char(9) || images.mime_type || char(9) ||
-       images.byte_size || char(9) || images.object_id || char(9) ||
+       images.byte_size || char(9) || images.sequence_id || char(9) ||
        images.position
 FROM images
-JOIN objects ON objects.id = images.object_id
-JOIN artists ON artists.id = objects.artist_id
+JOIN sequences ON sequences.id = images.sequence_id
+JOIN artists ON artists.id = sequences.artist_id
 WHERE images.id = $id;
 "
-}
-
-image_file_require() {
-  local record
-  record=$(image_file_record "$1")
-  if [ -z "$record" ]; then
-    echo "image file not found: $1" >&2
-    return 1
-  fi
-  printf '%s\n' "$record"
 }
 
 image_require() {
   local record
   record=$(image_record "$1")
   if [ -z "$record" ]; then
-    echo "image not found: $1" >&2
+    echo "image file not found: $1" >&2
     return 1
   fi
   printf '%s\n' "$record"
@@ -107,6 +83,7 @@ image_add() {
   local topic_id_sql
   local topic_statement
   local mime_sql
+  local result_column
   local target_dir
   local target
   local temporary
@@ -115,6 +92,14 @@ image_add() {
   cat=$2
   topic=$3
   file=$4
+  result_column=${5:-sequence_id}
+  case "$result_column" in
+    id | sequence_id) ;;
+    *)
+      echo "invalid image result column: $result_column" >&2
+      return 1
+      ;;
+  esac
   image_validate_artist "$artist"
   cat_validate "$cat"
   if [ -n "$topic" ]; then topic_validate "$topic"; fi
@@ -124,7 +109,7 @@ image_add() {
   fi
   sha=$(image_sha256 "$file")
   existing_id=$(db_value "
-SELECT object_id FROM images WHERE sha256 = $(db_quote "$sha");
+SELECT sequence_id FROM images WHERE sha256 = $(db_quote "$sha");
 ")
   if [ -n "$existing_id" ]; then
     echo "duplicate image skipped: sha256 $sha" >&2
@@ -170,15 +155,22 @@ INSERT OR IGNORE INTO artists (name) VALUES ($artist_sql);
 INSERT OR IGNORE INTO cats (artist_id, name)
 SELECT id, $cat_sql FROM artists WHERE name = $artist_sql;
 $topic_statement
-INSERT INTO objects (type, artist_id, cat_id, topic_id)
-SELECT 'image', artists.id, cats.id, $topic_id_sql
+INSERT OR IGNORE INTO sequences (artist_id, cat_id, topic_id)
+SELECT artists.id, cats.id, $topic_id_sql
 FROM artists
 JOIN cats ON cats.artist_id = artists.id
 WHERE artists.name = $artist_sql AND cats.name = $cat_sql;
-INSERT INTO images (object_id, position, sha256, mime_type, byte_size)
-SELECT (SELECT max(id) FROM objects), 1, $(db_quote "$sha"), $mime_sql, $size
-FROM artists WHERE name = $artist_sql;
-SELECT max(id) FROM objects;
+INSERT INTO images (sequence_id, position, sha256, mime_type, byte_size)
+SELECT sequences.id, COALESCE(max(images.position), 0) + 1,
+       $(db_quote "$sha"), $mime_sql, $size
+FROM sequences
+JOIN artists ON artists.id = sequences.artist_id
+JOIN cats ON cats.id = sequences.cat_id
+LEFT JOIN images ON images.sequence_id = sequences.id
+WHERE artists.name = $artist_sql AND cats.name = $cat_sql
+  AND sequences.topic_id IS $topic_id_sql
+GROUP BY sequences.id;
+SELECT $result_column FROM images WHERE sha256 = $(db_quote "$sha");
 COMMIT;
 "); then
     rm -f "$target"
@@ -192,9 +184,26 @@ image_remove() {
   local record
   local sha
   local artist
+  local sequence_id
+  local position
+  local count
   id=$1
   record=$(image_require "$id")
-  IFS=$'\t' read -r _ sha artist _ <<<"$record"
-  object_remove "$id"
+  IFS=$'\t' read -r _ sha artist _ _ sequence_id position <<<"$record"
+  count=$(db_value "SELECT count(*) FROM images WHERE sequence_id = $sequence_id;")
+  if [ "$count" -eq 1 ]; then
+    sequence_remove "$sequence_id"
+    return 0
+  else
+    db_run "
+BEGIN IMMEDIATE;
+DELETE FROM images WHERE id = $id;
+UPDATE images SET position = position + $count
+WHERE sequence_id = $sequence_id AND position > $position;
+UPDATE images SET position = position - $count - 1
+WHERE sequence_id = $sequence_id AND position > $count;
+COMMIT;
+"
+  fi
   image_file_delete "$artist" "$sha"
 }

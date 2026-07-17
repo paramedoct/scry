@@ -11,15 +11,10 @@ action_confirm() {
 }
 
 action_remove() {
-  local object_id
-  local type
-  object_id=$1
-  type=$(object_type "$object_id")
-  action_confirm "remove $type $object_id" || return 1
-  case "$type" in
-    image) image_remove "$object_id" ;;
-    sequence) sequence_remove "$object_id" ;;
-  esac
+  local sequence_id
+  sequence_id=$1
+  action_confirm "remove sequence $sequence_id" || return 1
+  sequence_remove "$sequence_id"
 }
 
 action_sequence_image_remove() {
@@ -70,13 +65,13 @@ display_info() {
   local id
   id=$1
   db_value "
-SELECT objects.id || char(9) || artists.name || char(9) || cats.name ||
+SELECT sequences.id || char(9) || artists.name || char(9) || cats.name ||
        char(9) || COALESCE(topics.name, '-')
-FROM objects
-JOIN artists ON artists.id = objects.artist_id
-JOIN cats ON cats.id = objects.cat_id
-LEFT JOIN topics ON topics.id = objects.topic_id
-WHERE objects.id = $id;
+FROM sequences
+JOIN artists ON artists.id = sequences.artist_id
+JOIN cats ON cats.id = sequences.cat_id
+LEFT JOIN topics ON topics.id = sequences.topic_id
+WHERE sequences.id = $id;
 "
 }
 
@@ -160,7 +155,6 @@ display_browser() {
   local rows
   local cols
   local target
-  local type
   local id
   local ids
   local record
@@ -189,11 +183,11 @@ display_browser() {
   while :; do
     position=$((selected + 1))
     target=${!position}
-    type=$(object_type "$target")
+    sequence_require "$target" >/dev/null
     image_ids=()
     ids=$(db_value "
 SELECT images.id FROM images
-WHERE images.object_id = $target
+WHERE images.sequence_id = $target
 ORDER BY images.position;
 ")
     while IFS= read -r id; do
@@ -202,14 +196,14 @@ ORDER BY images.position;
     done <<<"$ids"
     image_total=${#image_ids[@]}
     [ "$image_total" -gt 0 ] || {
-      echo "object is empty: $target" >&2
+      echo "sequence is empty: $target" >&2
       return 1
     }
     if ((image_selected >= image_total)); then
       image_selected=$((image_total - 1))
     fi
     id=${image_ids[$image_selected]}
-    record=$(image_file_require "$id")
+    record=$(image_require "$id")
     IFS=$'\t' read -r _ sha artist mime _ <<<"$record"
     info=$(display_info "$target")
     IFS=$'\t' read -r _ artist cat topic <<<"$info"
@@ -254,9 +248,7 @@ ORDER BY images.position;
         $'\033[C')
           ((image_selected + 1 < image_total)) && break
           ;;
-        x | X)
-          [ "$type" = sequence ] && break
-          ;;
+        x | X) break ;;
         d | D | b | B | q | Q | $'\033') break ;;
       esac
     done
@@ -281,10 +273,9 @@ ORDER BY images.position;
         image_selected=$((image_selected + 1))
         ;;
       x | X)
-        if [ "$type" = sequence ] && \
-          action_sequence_image_remove "$target" "$id" \
-            "$((image_selected + 1))"; then
-          if [ -z "$(object_type "$target")" ]; then
+        if action_sequence_image_remove "$target" "$id" \
+          "$((image_selected + 1))"; then
+          if [ -z "$(db_value "SELECT id FROM sequences WHERE id = $target;")" ]; then
             DISPLAY_SELECTED=$selected
             return 10
           fi

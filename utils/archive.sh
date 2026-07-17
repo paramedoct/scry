@@ -71,7 +71,7 @@ archive_add() {
     return 1
   fi
   for file in "${files[@]}"; do
-    if image_id=$(image_add "$artist" "$cat" "$topic" "$file"); then
+    if image_id=$(image_add "$artist" "$cat" "$topic" "$file" id); then
       image_ids+=("$image_id")
       continue
     else
@@ -85,11 +85,8 @@ archive_add() {
     fi
     return "$status"
   done
-  if ! sequence_id=$(sequence_add "${image_ids[@]}"); then
-    archive_remove_images "${image_ids[@]}"
-    rm -rf "$work_dir"
-    return 1
-  fi
+  sequence_id=$(db_value \
+    "SELECT sequence_id FROM images WHERE id = ${image_ids[0]};")
   rm -rf "$work_dir"
   printf '%s\n' "$sequence_id"
 }

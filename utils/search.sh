@@ -50,14 +50,14 @@ search_targets() {
     esac
   fi
   db_value "
-SELECT objects.id
-FROM objects
-JOIN images ON images.object_id = objects.id
-JOIN artists ON artists.id = objects.artist_id
-JOIN cats ON cats.id = objects.cat_id
-LEFT JOIN topics ON topics.id = objects.topic_id
+SELECT sequences.id
+FROM sequences
+JOIN images ON images.sequence_id = sequences.id
+JOIN artists ON artists.id = sequences.artist_id
+JOIN cats ON cats.id = sequences.cat_id
+LEFT JOIN topics ON topics.id = sequences.topic_id
 WHERE $where
-GROUP BY objects.id
-ORDER BY min(images.id), objects.id;
+GROUP BY sequences.id
+ORDER BY min(images.id), sequences.id;
 "
 }
