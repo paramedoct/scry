@@ -1,4 +1,4 @@
-action_confirm() {
+display_action_confirm() {
   local prompt
   local answer
   prompt=$1
@@ -10,21 +10,21 @@ action_confirm() {
   esac
 }
 
-action_remove() {
+display_action_remove() {
   local sequence_id
   sequence_id=$1
-  action_confirm "remove sequence $sequence_id" || return 1
+  display_action_confirm "remove sequence $sequence_id" || return 1
   sequence_remove "$sequence_id"
 }
 
-action_sequence_image_remove() {
+display_action_sequence_image_remove() {
   local sequence_id
   local image_id
   local position
   sequence_id=$1
   image_id=$2
   position=$3
-  action_confirm "remove image $position from sequence $sequence_id" || return 1
+  display_action_confirm "remove image $position from sequence $sequence_id" || return 1
   sequence_image_remove "$sequence_id" "$image_id"
 }
 
@@ -261,7 +261,7 @@ display_browser() {
         image_selected=$((image_selected + 1))
         ;;
       x | X)
-        if action_sequence_image_remove "$target" "$id" \
+        if display_action_sequence_image_remove "$target" "$id" \
           "$((image_selected + 1))"; then
           if [ -z "$(query_sequence_exists "$target")" ]; then
             DISPLAY_SELECTED=$selected
@@ -270,7 +270,7 @@ display_browser() {
         fi
         ;;
       d | D)
-        if action_remove "$target"; then
+        if display_action_remove "$target"; then
           DISPLAY_SELECTED=$selected
           return 10
         fi

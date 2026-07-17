@@ -18,7 +18,7 @@ source_modules \
   utils/sequence.sh \
   utils/archive.sh
 
-add_file() {
+gather_add_file() {
   local artist
   local cat
   local topic
@@ -66,7 +66,7 @@ main() {
   IFS=$'\t' read -r artist cat topic \
     < <(classification_parse_add_location "$location")
   for input in "$@"; do
-    if add_file "$artist" "$cat" "$topic" "$input"; then
+    if gather_add_file "$artist" "$cat" "$topic" "$input"; then
       continue
     else
       status=$?

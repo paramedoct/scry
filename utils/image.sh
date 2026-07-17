@@ -86,8 +86,8 @@ image_add() {
       ;;
   esac
   image_validate_artist "$artist"
-  cat_validate "$cat"
-  if [ -n "$topic" ]; then topic_validate "$topic"; fi
+  classification_validate_cat "$cat"
+  if [ -n "$topic" ]; then classification_validate_topic "$topic"; fi
   if [ ! -f "$file" ] || [ ! -r "$file" ]; then
     echo "image is not a readable file: $file" >&2
     return 1

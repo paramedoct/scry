@@ -1,4 +1,4 @@
-cat_validate() {
+classification_validate_cat() {
   local cat
   cat=$1
   case "$cat" in
@@ -9,7 +9,7 @@ cat_validate() {
   esac
 }
 
-topic_validate() {
+classification_validate_topic() {
   local topic
   topic=$1
   case "$topic" in
@@ -47,9 +47,9 @@ classification_parse_add_location() {
     *:*) topic=${rest#*:} ;;
   esac
   image_validate_artist "$artist" || return 1
-  cat_validate "$cat" || return 1
+  classification_validate_cat "$cat" || return 1
   if [ -n "$topic" ]; then
-    topic_validate "$topic" || return 1
+    classification_validate_topic "$topic" || return 1
   elif [ "$rest" != "$cat" ]; then
     echo "invalid topic: $topic" >&2
     return 1
