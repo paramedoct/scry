@@ -148,7 +148,10 @@ display_browser() {
       case "$key" in
         $'\033[A') delta=-1 ;;
         $'\033[B') delta=1 ;;
-        x | X) break ;;
+        x | X)
+          if display_action_confirm "$rows" "$pager"; then break; fi
+          continue
+          ;;
         b | B | q | Q | $'\033') break ;;
         *) continue ;;
       esac
@@ -164,7 +167,7 @@ display_browser() {
     selected=$(((selected + delta + total) % total))
     case "$key" in
       x | X)
-        if display_action_confirm "$rows" "$pager" && image_remove "$id"; then
+        if image_remove "$id"; then
           DISPLAY_SELECTED=$selected
           return 10
         fi
