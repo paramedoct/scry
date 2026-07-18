@@ -11,7 +11,7 @@ usage() {
 # shellcheck source=/dev/null
 source "$ROOT_DIR/utils/source.sh"
 source_modules \
-  utils/state.sh \
+  utils/database.sh \
   utils/image.sh \
   utils/location.sh
 
@@ -84,11 +84,11 @@ main() {
   local source
   local input
   [ "$#" -ge 2 ] || usage
-  require_command curl || return 1
+  source_require_command curl || return 1
   location=$1
   shift
   trap gather_cleanup EXIT
-  state_prepare
+  database_prepare
   IFS=: read -r subject source \
     < <(location_parse "$location" add)
   for input in "$@"; do

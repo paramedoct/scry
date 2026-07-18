@@ -57,12 +57,12 @@ location_search() {
   fi
   where='1 = 1'
   if [ -n "$subject" ]; then
-    where="$where AND images.subject = $(db_quote "$subject")"
+    where="$where AND images.subject = $(database_quote "$subject")"
   fi
   if [ -n "$source" ]; then
-    where="$where AND images.source = $(db_quote "$source")"
+    where="$where AND images.source = $(database_quote "$source")"
   fi
-  db_value "
+  database_value "
 SELECT images.id
 FROM images
 WHERE $where

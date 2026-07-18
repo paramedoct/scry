@@ -10,7 +10,7 @@ usage() {
 # shellcheck source=/dev/null
 source "$ROOT_DIR/utils/source.sh"
 source_modules \
-  utils/state.sh \
+  utils/database.sh \
   utils/image.sh \
   utils/location.sh \
   utils/display.sh
@@ -37,7 +37,7 @@ main() {
       ;;
     *) usage ;;
   esac
-  state_prepare
+  database_prepare
   if [ -t 0 ] && [ -t 1 ]; then
     display_cursor_hide
     trap display_cursor_show EXIT

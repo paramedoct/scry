@@ -24,7 +24,7 @@ image_file_delete() {
 
 image_require() {
   local record
-  record=$(db_value "
+  record=$(database_value "
 SELECT id, sha256, source, mime_type, subject, byte_size
 FROM images
 WHERE images.id = $1;
@@ -52,8 +52,8 @@ image_add() {
   source=$2
   file=$3
   sha=$(image_sha256 "$file")
-  existing_id=$(db_value \
-    "SELECT id FROM images WHERE sha256 = $(db_quote "$sha");")
+  existing_id=$(database_value \
+    "SELECT id FROM images WHERE sha256 = $(database_quote "$sha");")
   if [ -n "$existing_id" ]; then
     echo "duplicate image skipped: sha256 $sha" >&2
     return 2
@@ -80,11 +80,11 @@ image_add() {
     rm -f "$temporary"
     return 1
   fi
-  if ! id=$(db_value "
+  if ! id=$(database_value "
 INSERT INTO images (subject, source, sha256, mime_type, byte_size)
-VALUES ($(db_quote "$subject"), $(db_quote "$source"), $(db_quote "$sha"),
-        $(db_quote "$mime"), $size);
-SELECT id FROM images WHERE sha256 = $(db_quote "$sha");"); then
+VALUES ($(database_quote "$subject"), $(database_quote "$source"),
+        $(database_quote "$sha"), $(database_quote "$mime"), $size);
+SELECT id FROM images WHERE sha256 = $(database_quote "$sha");"); then
     rm -f "$target"
     return 1
   fi
@@ -99,7 +99,7 @@ image_remove() {
   id=$1
   record=$(image_require "$id")
   IFS=$'\t' read -r _ sha source _ _ _ <<<"$record"
-  db_run "DELETE FROM images WHERE id = $id;"
+  database_run "DELETE FROM images WHERE id = $id;"
   image_file_delete "$source" "$sha"
 }
 
@@ -120,7 +120,7 @@ image_archive_add() (
   subject=$1
   source=$2
   archive=$3
-  require_command unzip || return 1
+  source_require_command unzip || return 1
   work_dir=$(mktemp -d "$SCRY_STATE_DIR/.archive.XXXXXX")
   trap 'rm -rf "$work_dir"' EXIT
   entries_file=$work_dir/entries
