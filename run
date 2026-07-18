@@ -10,11 +10,9 @@ usage() {
 # shellcheck source=/dev/null
 source "$ROOT_DIR/utils/source.sh"
 source_modules \
-  utils/db.sh \
-  utils/environment.sh \
+  utils/state.sh \
   utils/image.sh \
-  utils/classification.sh \
-  utils/search.sh \
+  utils/location.sh \
   utils/display.sh
 
 main() {
@@ -39,15 +37,16 @@ main() {
       ;;
     *) usage ;;
   esac
-  environment_prepare
+  state_prepare
   if [ -t 0 ] && [ -t 1 ]; then
     display_cursor_hide
     trap display_cursor_show EXIT
   fi
+  # shellcheck disable=SC2034
   DISPLAY_SELECTED=0
   while :; do
     result_targets=()
-    targets=$(search_targets "${location_args[@]}")
+    targets=$(location_search "${location_args[@]}")
     while IFS= read -r arg; do
       [ -n "$arg" ] && result_targets+=("$arg")
     done <<<"$targets"

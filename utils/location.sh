@@ -1,4 +1,4 @@
-classification_validate_name() {
+location_validate_name() {
   local type
   local name
   type=$1
@@ -11,7 +11,7 @@ classification_validate_name() {
   esac
 }
 
-classification_parse_location() {
+location_parse() {
   local location
   local mode
   local subject
@@ -27,7 +27,7 @@ classification_parse_location() {
       ;;
     *:*)
       source=${location#*:}
-      classification_validate_name source "$source" || return 1
+      location_validate_name source "$source" || return 1
       ;;
     *)
       if [ "$mode" = add ]; then
@@ -38,7 +38,34 @@ classification_parse_location() {
   esac
   if [ "$mode" = add ] || [ "$subject" = "$location" ] ||
     [ -n "$subject" ]; then
-    classification_validate_name subject "$subject" || return 1
+    location_validate_name subject "$subject" || return 1
   fi
   printf '%s:%s\n' "$subject" "$source"
+}
+
+location_search() {
+  local fields
+  local subject
+  local source
+  local where
+  if [ "$#" -eq 0 ]; then
+    subject=
+    source=
+  else
+    fields=$(location_parse "$1" search) || return 1
+    IFS=: read -r subject source <<<"$fields"
+  fi
+  where='1 = 1'
+  if [ -n "$subject" ]; then
+    where="$where AND images.subject = $(db_quote "$subject")"
+  fi
+  if [ -n "$source" ]; then
+    where="$where AND images.source = $(db_quote "$source")"
+  fi
+  db_value "
+SELECT images.id
+FROM images
+WHERE $where
+ORDER BY images.id;
+"
 }

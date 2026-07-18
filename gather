@@ -11,11 +11,9 @@ usage() {
 # shellcheck source=/dev/null
 source "$ROOT_DIR/utils/source.sh"
 source_modules \
-  utils/db.sh \
-  utils/environment.sh \
+  utils/state.sh \
   utils/image.sh \
-  utils/classification.sh \
-  utils/archive.sh
+  utils/location.sh
 
 gather_cleanup() {
   if [ -n "$GATHER_TEMPORARY" ]; then
@@ -40,7 +38,7 @@ gather_add_file() {
   mime=$(file -b --mime-type -- "$input")
   case "$mime" in
     application/zip | application/x-zip | application/x-zip-compressed)
-      archive_add "$subject" "$source" "$input" || status=$?
+      image_archive_add "$subject" "$source" "$input" || status=$?
       ;;
     *)
       image_add "$subject" "$source" "$input" || status=$?
@@ -86,16 +84,13 @@ main() {
   local source
   local input
   [ "$#" -ge 2 ] || usage
-  if ! command -v curl >/dev/null 2>&1; then
-    echo "curl command not found" >&2
-    return 1
-  fi
+  require_command curl || return 1
   location=$1
   shift
   trap gather_cleanup EXIT
-  environment_prepare
+  state_prepare
   IFS=: read -r subject source \
-    < <(classification_parse_location "$location" add)
+    < <(location_parse "$location" add)
   for input in "$@"; do
     gather_add_url "$subject" "$source" "$input"
   done

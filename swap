@@ -10,13 +10,12 @@ usage() {
 # shellcheck source=/dev/null
 source "$ROOT_DIR/utils/source.sh"
 source_modules \
-  utils/db.sh \
-  utils/environment.sh
+  utils/state.sh
 
 main() {
   local format
   [ "$#" -le 1 ] || usage
-  environment_prepare
+  state_prepare
   if [ "$#" -eq 0 ]; then
     printf '%s\n' "$SCRY_DISPLAY_FORMAT"
     return 0
