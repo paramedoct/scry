@@ -151,7 +151,7 @@ display_browser() {
         b | B | q | Q | $'\033') break ;;
         *) continue ;;
       esac
-      if ((selected + delta >= 0 && selected + delta < total)); then
+      if ((delta != 0)); then
         break
       fi
     done
@@ -160,7 +160,7 @@ display_browser() {
       return 1
     fi
     printf '\033[%s;1H\033[2K' "$rows"
-    selected=$((selected + delta))
+    selected=$(((selected + delta + total) % total))
     case "$key" in
       x | X)
         if display_action_confirm "remove image $target" && image_remove "$id"; then
