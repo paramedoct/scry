@@ -1,7 +1,6 @@
 archive_add() (
-  local artist
-  local cat
-  local topic
+  local subject
+  local source
   local archive
   local work_dir
   local entries_file
@@ -13,10 +12,9 @@ archive_add() (
   local status
   local -a image_ids
   local -a files
-  artist=$1
-  cat=$2
-  topic=$3
-  archive=$4
+  subject=$1
+  source=$2
+  archive=$3
   if ! command -v unzip >/dev/null 2>&1; then
     echo "unzip command not found" >&2
     return 1
@@ -56,7 +54,7 @@ archive_add() (
     return 1
   fi
   for file in "${files[@]}"; do
-    if image_id=$(image_add "$artist" "$cat" "$topic" "$file"); then
+    if image_id=$(image_add "$subject" "$source" "$file"); then
       image_ids+=("$image_id")
       continue
     else

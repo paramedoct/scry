@@ -1,26 +1,21 @@
 search_targets() {
   local fields
-  local artist
-  local cat
-  local topic
+  local subject
+  local source
   local where
   if [ "$#" -eq 0 ]; then
-    artist=
-    cat=
-    topic=
+    subject=
+    source=
   else
     fields=$(classification_parse_location "$1" search) || return 1
-    IFS=: read -r artist cat topic <<<"$fields"
+    IFS=: read -r subject source <<<"$fields"
   fi
   where='1 = 1'
-  if [ -n "$artist" ]; then
-    where="$where AND images.artist = $(db_quote "$artist")"
+  if [ -n "$subject" ]; then
+    where="$where AND images.subject = $(db_quote "$subject")"
   fi
-  if [ -n "$cat" ]; then
-    where="$where AND images.cat = $(db_quote "$cat")"
-  fi
-  if [ -n "$topic" ]; then
-    where="$where AND images.topic = $(db_quote "$topic")"
+  if [ -n "$source" ]; then
+    where="$where AND images.source = $(db_quote "$source")"
   fi
   db_value "
 SELECT images.id

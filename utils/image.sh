@@ -14,18 +14,18 @@ image_path() {
 }
 
 image_file_delete() {
-  local artist
+  local source
   local sha
-  artist=$1
+  source=$1
   sha=$2
-  rm -f -- "$(image_path "$artist" "$sha")"
-  rmdir "$SCRY_IMAGES_DIR/$artist" 2>/dev/null || true
+  rm -f -- "$(image_path "$source" "$sha")"
+  rmdir "$SCRY_IMAGES_DIR/$source" 2>/dev/null || true
 }
 
 image_require() {
   local record
   record=$(db_value "
-SELECT id, sha256, artist, mime_type, cat, COALESCE(topic, '-'), byte_size
+SELECT id, sha256, source, mime_type, subject, byte_size
 FROM images
 WHERE images.id = $1;
 ")
@@ -37,9 +37,8 @@ WHERE images.id = $1;
 }
 
 image_add() {
-  local artist
-  local cat
-  local topic
+  local subject
+  local source
   local file
   local sha
   local existing_id
@@ -49,10 +48,9 @@ image_add() {
   local target
   local temporary
   local id
-  artist=$1
-  cat=$2
-  topic=$3
-  file=$4
+  subject=$1
+  source=$2
+  file=$3
   sha=$(image_sha256 "$file")
   existing_id=$(db_value \
     "SELECT id FROM images WHERE sha256 = $(db_quote "$sha");")
@@ -69,8 +67,8 @@ image_add() {
       ;;
   esac
   size=$(wc -c <"$file" | tr -d '[:space:]')
-  target_dir=$SCRY_IMAGES_DIR/$artist
-  target=$(image_path "$artist" "$sha")
+  target_dir=$SCRY_IMAGES_DIR/$source
+  target=$(image_path "$source" "$sha")
   mkdir -p "$target_dir"
   temporary=$(mktemp "$target_dir/.${sha}.XXXXXX")
   if ! cp -- "$file" "$temporary"; then
@@ -83,9 +81,8 @@ image_add() {
     return 1
   fi
   if ! id=$(db_value "
-INSERT INTO images (artist, cat, topic, sha256, mime_type, byte_size)
-VALUES ($(db_quote "$artist"), $(db_quote "$cat"),
-        NULLIF($(db_quote "$topic"), ''), $(db_quote "$sha"),
+INSERT INTO images (subject, source, sha256, mime_type, byte_size)
+VALUES ($(db_quote "$subject"), $(db_quote "$source"), $(db_quote "$sha"),
         $(db_quote "$mime"), $size);
 SELECT id FROM images WHERE sha256 = $(db_quote "$sha");"); then
     rm -f "$target"
@@ -98,10 +95,10 @@ image_remove() {
   local id
   local record
   local sha
-  local artist
+  local source
   id=$1
   record=$(image_require "$id")
-  IFS=$'\t' read -r _ sha artist _ _ _ _ <<<"$record"
+  IFS=$'\t' read -r _ sha source _ _ _ <<<"$record"
   db_run "DELETE FROM images WHERE id = $id;"
-  image_file_delete "$artist" "$sha"
+  image_file_delete "$source" "$sha"
 }

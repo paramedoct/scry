@@ -49,7 +49,7 @@ display_image_start() {
   rows=$2
   cols=$3
   mime=$4
-  view_size="${cols}x$((rows - 7))"
+    view_size="${cols}x$((rows - 6))"
   (
     local image_pid
     trap '
@@ -96,9 +96,8 @@ display_browser() {
   local id
   local record
   local sha
-  local artist
-  local cat
-  local topic
+  local source
+  local subject
   local mime
   local key
   local path
@@ -117,8 +116,8 @@ display_browser() {
     position=$((selected + 1))
     target=${!position}
     record=$(image_require "$target")
-    IFS=$'\t' read -r id sha artist mime cat topic _ <<<"$record"
-    path=$(image_path "$artist" "$sha")
+    IFS=$'\t' read -r id sha source mime subject _ <<<"$record"
+    path=$(image_path "$source" "$sha")
     if [ ! -r "$path" ]; then
       echo "stored image not found: $path" >&2
       return 1
@@ -130,12 +129,11 @@ display_browser() {
     if ((cols < 20)); then cols=20; fi
     image_rows=$(chafa --probe off --format symbols --colors none \
       --symbols ascii --animate off --scale max --align top,left \
-      --size "${cols}x$((rows - 7))" --work 1 "$path" |
+      --size "${cols}x$((rows - 6))" --work 1 "$path" |
       awk 'END { print NR }')
     display_clear_history
     printf '\033[%s;1H' "$((image_rows + 1))"
-    printf '%-6s %s\n%-6s %s\n%-6s %s\n' \
-      artist "$artist" cat "$cat" topic "$topic"
+    printf '%-7s %s\n%-7s %s\n' subject "$subject" source "$source"
     pager=$(printf '[%s/%s]' "$((selected + 1))" "$total")
     printf '\033[%s;1H\033[2K' "$rows"
     printf '%s' "$pager"

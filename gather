@@ -3,7 +3,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 usage() {
-  echo "$0 <artist>:<cat>[:<topic>] <file...>" >&2
+  echo "$0 <subject>:<source> <file...>" >&2
   exit 1
 }
 
@@ -17,16 +17,14 @@ source_modules \
   utils/archive.sh
 
 gather_add_file() {
-  local artist
-  local cat
-  local topic
+  local subject
+  local source
   local input
   local mime
   local status
-  artist=$1
-  cat=$2
-  topic=$3
-  input=$4
+  subject=$1
+  source=$2
+  input=$3
   if [ ! -f "$input" ] || [ ! -r "$input" ]; then
     echo "input is not a readable file: $input" >&2
     return 1
@@ -34,10 +32,10 @@ gather_add_file() {
   mime=$(file -b --mime-type -- "$input")
   case "$mime" in
     application/zip | application/x-zip | application/x-zip-compressed)
-      archive_add "$artist" "$cat" "$topic" "$input" || status=$?
+      archive_add "$subject" "$source" "$input" || status=$?
       ;;
     *)
-      image_add "$artist" "$cat" "$topic" "$input" || status=$?
+      image_add "$subject" "$source" "$input" || status=$?
       ;;
   esac
   [ "${status:-0}" -eq 2 ] || return "${status:-0}"
@@ -45,18 +43,17 @@ gather_add_file() {
 
 main() {
   local location
-  local artist
-  local cat
-  local topic
+  local subject
+  local source
   local input
   [ "$#" -ge 2 ] || usage
   location=$1
   shift
   environment_prepare
-  IFS=: read -r artist cat topic \
+  IFS=: read -r subject source \
     < <(classification_parse_location "$location" add)
   for input in "$@"; do
-    gather_add_file "$artist" "$cat" "$topic" "$input"
+    gather_add_file "$subject" "$source" "$input"
   done
 }
 
