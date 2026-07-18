@@ -42,17 +42,48 @@ display_read_key() {
   printf '%s' "$key"
 }
 
+display_size() {
+  local rows
+  local cols
+  rows=24
+  cols=80
+  read -r rows cols \
+    < <((stty size </dev/tty) 2>/dev/null || printf '24 80\n')
+  if ((rows < 10)); then rows=10; fi
+  if ((cols < 20)); then cols=20; fi
+  printf '%s %s\n' "$rows" "$cols"
+}
+
+display_image_rows() {
+  local path
+  local rows
+  local cols
+  path=$1
+  rows=$2
+  cols=$3
+  chafa --probe off --format symbols --colors none \
+    --symbols ascii --animate off --scale max --align top,left \
+    --size "${cols}x$((rows - 6))" --work 1 "$path" |
+    awk 'END { print NR }'
+}
+
 display_image_start() {
   local path
   local rows
   local cols
   local mime
   local view_size
+  local -a animation_args
   path=$1
   rows=$2
   cols=$3
   mime=$4
-    view_size="${cols}x$((rows - 6))"
+  view_size="${cols}x$((rows - 6))"
+  if [ "$mime" = image/gif ]; then
+    animation_args=(--animate on --duration infinite)
+  else
+    animation_args=(--animate off)
+  fi
   (
     local image_pid
     trap '
@@ -62,14 +93,9 @@ display_image_start() {
       exit 143
     ' TERM
     printf '\033[H'
-    if [ "$mime" = image/gif ]; then
-      chafa --probe off --format "$SCRY_DISPLAY_FORMAT" --animate on \
-        --duration infinite --scale max --align top,left \
-        --size "$view_size" "$path" &
-    else
-      chafa --probe off --format "$SCRY_DISPLAY_FORMAT" --animate off \
-        --scale max --align top,left --size "$view_size" "$path" &
-    fi
+    chafa --probe off --format "$SCRY_DISPLAY_FORMAT" \
+      "${animation_args[@]}" --scale max --align top,left \
+      --size "$view_size" "$path" &
     image_pid=$!
     wait "$image_pid"
     display_cursor_hide
@@ -125,15 +151,8 @@ display_browser() {
       echo "stored image not found: $path" >&2
       return 1
     fi
-    rows=24
-    cols=80
-    read -r rows cols < <(stty size </dev/tty 2>/dev/null || printf '24 80\n')
-    if ((rows < 10)); then rows=10; fi
-    if ((cols < 20)); then cols=20; fi
-    image_rows=$(chafa --probe off --format symbols --colors none \
-      --symbols ascii --animate off --scale max --align top,left \
-      --size "${cols}x$((rows - 6))" --work 1 "$path" |
-      awk 'END { print NR }')
+    read -r rows cols < <(display_size)
+    image_rows=$(display_image_rows "$path" "$rows" "$cols")
     display_clear_history
     printf '\033[%s;1H' "$((image_rows + 1))"
     printf '%-7s %s\n%-7s %s\n' subject "$subject" source "$source"
